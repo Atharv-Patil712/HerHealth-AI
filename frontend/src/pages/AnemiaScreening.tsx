@@ -1,0 +1,355 @@
+import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
+import { API_BASE } from "../lib/config";
+
+const MAX_SIZE_MB = 10;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+interface UploadState {
+  file: File | null;
+  preview: string | null;
+  error: string | null;
+}
+
+function emptyUpload(): UploadState {
+  return { file: null, preview: null, error: null };
+}
+
+interface ScreeningResult {
+  model: string;
+  roi_detected: boolean;
+  roi_label: string;
+  roi_confidence: number;
+  roi_box_xyxy: number[];
+  anemia_probability: number;
+  estimated_hemoglobin_g_dl: number;
+  is_anemic_flag: boolean;
+  heads_agree: boolean;
+  risk_tier: "Low" | "Moderate" | "High";
+  disclaimer: string;
+}
+
+export default function AnemiaScreening() {
+  const { t } = useTranslation();
+  const [consented, setConsented] = useState(false);
+  const [eyelid, setEyelid] = useState<UploadState>(emptyUpload());
+  const [nail, setNail] = useState<UploadState>(emptyUpload());
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [result, setResult] = useState<ScreeningResult | null>(null);
+
+  const eyelidRef = useRef<HTMLInputElement>(null);
+  const nailRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (s: UploadState) => void
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setter({ file: null, preview: null, error: t("forms.upload.size_limit", { max_size: MAX_SIZE_MB }) });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setter({ file, preview: ev.target?.result as string, error: null });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setApiError(null);
+
+    if (!eyelid.file) {
+      if (nail.file) {
+        setApiError("An inner lower eyelid photo is required for screening. The model analyzes the conjunctiva only.");
+      }
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", eyelid.file);
+
+      const endpoint = `${API_BASE}/api/screenings/analyze`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text();
+      }
+
+      if (!response.ok) {
+        let message = "Something went wrong. Please try again.";
+        if (body && typeof body === "object" && "detail" in body) {
+          const detail = (body as { detail: unknown }).detail;
+          if (detail && typeof detail === "object" && "message" in detail) {
+            message = String((detail as { message: unknown }).message);
+          } else if (typeof detail === "string") {
+            message = detail;
+          }
+        } else if (typeof body === "string" && body.trim()) {
+          message = body;
+        }
+        setApiError(message);
+        return;
+      }
+
+      setResult(body as ScreeningResult);
+    } catch {
+      setApiError("Network error. Unable to reach the screening service. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (result) {
+    const isUncertain = !result.roi_detected || !result.heads_agree;
+    const tierColors = {
+      Low: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      Moderate: "bg-amber-50 text-amber-800 border-amber-200",
+      High: "bg-rose-50 text-rose-800 border-rose-200",
+    }[result.risk_tier] || "bg-pink/10 text-deep border-pink/30";
+
+    return (
+      <div className="page-container py-12 max-w-lg">
+        <div className="bg-white rounded-xl border border-border shadow-soft p-8">
+          <div className="text-center mb-6">
+            <CheckCircle size={40} className="mx-auto text-sage mb-3" />
+            <h2 className="font-serif text-section text-ink">Screening Assessment</h2>
+            <p className="text-xs text-ink/60 mt-1">Model: {result.model}</p>
+          </div>
+
+          <div className="space-y-4 mb-6">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-blush border border-border">
+              <span className="text-sm font-medium text-ink">Risk Tier</span>
+              <span className={`text-xs px-3 py-1 font-semibold rounded-full border ${tierColors}`}>
+                {result.risk_tier} Risk
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 rounded-lg bg-blush border border-border text-center">
+                <span className="text-xs text-ink/60 block mb-1">Estimated Hemoglobin</span>
+                <span className="text-xl font-bold text-ink">
+                  {result.estimated_hemoglobin_g_dl.toFixed(1)}{" "}
+                  <span className="text-xs font-normal text-ink/60">g/dL</span>
+                </span>
+              </div>
+
+              <div className="p-4 rounded-lg bg-blush border border-border text-center">
+                <span className="text-xs text-ink/60 block mb-1">Anemia Probability</span>
+                <span className="text-xl font-bold text-ink">
+                  {(result.anemia_probability * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            {isUncertain && (
+              <div className="p-3.5 rounded-lg bg-cream border border-deep/20 flex items-start gap-2.5 text-xs text-deep">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  {!result.roi_detected
+                    ? "The conjunctiva was not clearly segmented. We recommend retaking the photo in bright light or getting a clinical CBC blood test."
+                    : "The probability model and hemoglobin estimator produced diverging assessments. We recommend retaking the photo or consulting a clinician for a CBC blood test."}
+                </span>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-lg bg-blush/60 border border-border text-xs text-ink/70 leading-relaxed">
+              <p className="font-medium text-ink mb-1">Important Notice</p>
+              <p>{result.disclaimer}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setResult(null);
+              setEyelid(emptyUpload());
+              setNail(emptyUpload());
+              setConsented(false);
+              setApiError(null);
+            }}
+            className="w-full py-2.5 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors"
+          >
+            Start over
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-container py-8 max-w-2xl">
+      <div className="mb-8">
+        <p className="text-xs font-semibold text-pink uppercase tracking-wider mb-2">{t("screening.title")}</p>
+        <h1 className="text-display-md font-serif text-ink">{t("screening.title")}</h1>
+        <p className="text-ink/60 mt-2">{t("screening.subtitle")}</p>
+      </div>
+
+      {/* Prototype notice */}
+      <div className="bg-cream border border-deep/20 rounded-xl p-5 mb-6 flex items-start gap-3">
+        <AlertTriangle size={18} className="text-deep mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-deep mb-1">{t("screening.limitation")}</p>
+          <p className="text-sm text-deep/80 leading-relaxed">{t("screening.limitation_text")}</p>
+        </div>
+      </div>
+
+      {/* What it explores */}
+      <div className="bg-white rounded-xl border border-border shadow-soft p-6 mb-6">
+        <h2 className="font-serif font-semibold text-ink mb-3">{t("screening.what_it_is")}</h2>
+        <p className="text-sm text-ink/70 leading-relaxed">{t("screening.what_it_is_desc")}</p>
+      </div>
+
+      {/* Consent */}
+      <div className="bg-white rounded-xl border border-border shadow-soft p-6 mb-6">
+        <div className="flex items-start gap-2 mb-4">
+          <Info size={16} className="text-deep mt-0.5 shrink-0" />
+          <h2 className="font-serif font-semibold text-ink">{t("screening.consent_heading")}</h2>
+        </div>
+        <p className="text-sm text-ink/70 leading-relaxed mb-4">{t("screening.consent_text")}</p>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => setConsented(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-deep"
+          />
+          <span className="text-sm text-ink">
+            I understand this is a prototype screening tool, and that a clinical CBC blood test is required for definitive medical diagnosis.
+          </span>
+        </label>
+      </div>
+
+      {/* Error message */}
+      {apiError && (
+        <div className="mb-6 p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5 text-rose-600" />
+          <div className="text-sm leading-relaxed">
+            <p className="font-semibold mb-0.5">Screening Notice</p>
+            <p>{apiError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload form */}
+      <form onSubmit={handleSubmit} className={!consented ? "opacity-50 pointer-events-none" : ""}>
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <UploadZone
+            label={t("screening.upload_eyelid")}
+            guidance={t("screening.guidance_eyelid")}
+            state={eyelid}
+            inputRef={eyelidRef}
+            onChange={(e) => {
+              setApiError(null);
+              handleFile(e, setEyelid);
+            }}
+            onRemove={() => {
+              setApiError(null);
+              setEyelid(emptyUpload());
+            }}
+          />
+          <UploadZone
+            label={t("screening.upload_nail")}
+            guidance={t("screening.guidance_nail")}
+            state={nail}
+            inputRef={nailRef}
+            onChange={(e) => {
+              setApiError(null);
+              handleFile(e, setNail);
+            }}
+            onRemove={() => {
+              setApiError(null);
+              setNail(emptyUpload());
+            }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !consented || (!eyelid.file && !nail.file)}
+          className="w-full py-3 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loading && <Loader2 size={16} className="animate-spin" />}
+          {loading ? "Analyzing image..." : t("screening.submit")}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function UploadZone({
+  label,
+  guidance,
+  state,
+  inputRef,
+  onChange,
+  onRemove,
+}: {
+  label: string;
+  guidance: string;
+  state: UploadState;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-ink mb-2">{label}</p>
+      <p className="text-xs text-ink/50 mb-3 leading-relaxed">{guidance}</p>
+
+      {state.preview ? (
+        <div className="relative rounded-xl overflow-hidden border border-border">
+          <img src={state.preview} alt="Upload preview" className="w-full h-40 object-cover" />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-ink/60 text-white hover:bg-ink transition-colors"
+            aria-label={t("forms.upload.remove")}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full h-36 rounded-xl border-2 border-dashed border-border hover:border-pink bg-blush hover:bg-rose transition-colors flex flex-col items-center justify-center gap-2 text-ink/50 hover:text-deep"
+        >
+          <Upload size={24} />
+          <span className="text-xs">{t("forms.upload.drop_zone")}</span>
+          <span className="text-xs text-deep font-medium">{t("forms.upload.browse")}</span>
+        </button>
+      )}
+
+      {state.error && (
+        <p className="text-xs text-red-600 mt-2">{state.error}</p>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ALLOWED_TYPES.join(",")}
+        onChange={onChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
