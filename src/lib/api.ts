@@ -24,6 +24,9 @@ async function parseBody(response: Response): Promise<unknown> {
       return await response.text();
     }
   }
+  if (contentType.includes("text/html")) {
+    throw new ApiError(response.status, "Backend API is not connected.");
+  }
   return await response.text();
 }
 

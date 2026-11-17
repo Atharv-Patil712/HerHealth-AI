@@ -1,3 +1,4 @@
+import { api } from "../lib/api";
 import { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -21,19 +22,15 @@ export default function Reports() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Note: If main.py mounts screenings.router with prefix="/api" instead of "/api/screenings",
-    // change the URL below to "http://127.0.0"
-    fetch("/api/screenings/history")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    api
+      .get<{ items: ScreeningRecord[] }>("/api/screenings/history")
       .then((data) => {
         setRecords(data.items || []);
-        setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Could not load history.");
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []);
