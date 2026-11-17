@@ -141,3 +141,41 @@ cd backend
 .venv\Scripts\pytest.exe
 ```
 *Current test suite: 12 passing tests.*
+
+Some Important Points :->
+
+ HerHealth AI — Models, Datasets & Engines by Task
+
+• For Inner Lower Eyelid (Conjunctiva) Detection & Anemia Screening:
+	• Model: HerHealthUnifiedModel (Custom Fused PyTorch Pipeline saved as herhealth_unified.pt)
+	• How it works: Combines Fused YOLOv11n-seg (detects and crops the inner lower eyelid region of interest) with Fused EfficientNet-B0 (predicts anemia probability and estimates hemoglobin in g/dL).
+	• Backend Endpoint: POST /api/screenings/analyze
+
+
+• For Fingernail Bed Pallor & Anemia Screening:
+	• Model: JetX-GT/nail-anemia-detector (Hugging Face Pretrained Model: mlp_model.joblib + feature_scaler.joblib)
+	• How it works: Extracts 24 color, redness, brightness, and pallor features (extract_features) from the fingernail bed and runs a scikit-learn MLPClassifier tuned for high-sensitivity screening (90% recall).
+	• Backend Endpoint: POST /api/screenings/analyze-nail
+
+
+• For Women's Health Q&A & Medical Knowledge Base:
+	• Dataset & Search Engine: altaidevorg/women-health-mini (10,348 conversational medical Q&A pairs) indexed in SQLite FTS5 (women_health_qa virtual table)
+	• How it works: Uses BM25 full-text relevance ranking with stopword filtering to retrieve verified answers on menstruation, anemia, PCOS, and reproductive care in milliseconds.
+	• Backend Endpoint: GET /api/education/ask
+
+
+• For Hands-Free Voice Dictation (Multi-Language):
+	• Engine: Browser Web Speech API (SpeechRecognition / webkitSpeechRecognition) wrapped in VoiceMicButton.tsx
+	• How it works: Captures spoken user queries in real time and transcribes them into text across supported languages (en-IN, hi-IN, mr-IN, ta-IN, te-IN, bn-IN).
+
+
+• For Menstrual Cycle, Fertile Window & Ovulation Prediction:
+	• Engine: Rule-Based Clinical Cycle Calculator (cycleStorage.ts) backed by SQLite (cycle_entries)
+	• How it works: Computes average cycle length from logged period start dates and projects the next predicted period, ovulation day, and fertile window.
+	• Backend Endpoint: POST /api/cycle-entries & GET /api/cycle-entries
+
+   
+• For Permanent User History & Dashboard Analytics:
+	• Database: SQLite (backend/data/herhealth.db) via Python sqlite3 (database.py)
+	• How it works: Stores all screening predictions (anemia_screenings), cycle logs (cycle_entries), and Q&A records (women_health_qa) permanently on disk.
+	• Backend Endpoint: GET /api/screenings/history & GET /api/dashboard

@@ -6,14 +6,14 @@ export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
-  ({ className, size = 40, ...props }, ref) => (
+  ({ className, size = 40, style, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white text-ink",
-        { w: size, h: size },
         className
       )}
+      style={{ width: size, height: size, ...style }}
       {...props}
     />
   )

@@ -57,7 +57,7 @@ export default function Home() {
         <div className="page-container">
           <div className="grid md:grid-cols-3 gap-8">
             <FeatureCard
-              symbol="🩸"
+              //symbol="🩸"
               icon={<Droplets size={24} className="text-deep" />}
               eyebrow={t("home.features.tracking.eyebrow")}
               title={t("home.features.tracking.title")}
@@ -66,7 +66,7 @@ export default function Home() {
               href="/cycle-tracking"
             />
             <FeatureCard
-              symbol="📖"
+              //symbol="📖"
               icon={<BookOpen size={24} className="text-deep" />}
               eyebrow={t("home.features.education.eyebrow")}
               title={t("home.features.education.title")}
@@ -75,7 +75,7 @@ export default function Home() {
               href="/education"
             />
             <FeatureCard
-              symbol="📝"
+              //symbol="📝"
               icon={<BookMarked size={24} className="text-deep" />}
               eyebrow={t("home.features.journal.eyebrow")}
               title={t("home.features.journal.title")}

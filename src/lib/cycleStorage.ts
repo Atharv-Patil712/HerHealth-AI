@@ -2,6 +2,7 @@
  * Cycle data persistence and calculations.
  * All data stored in localStorage — no server dependency for basic tracking.
  */
+import { api } from "./api";
 
 export type FlowLevel = "spotting" | "light" | "medium" | "heavy";
 export type MoodOption = "great" | "good" | "okay" | "low" | "anxious" | "irritable";
@@ -50,10 +51,31 @@ export function getDayEntry(date: string): CycleDay | undefined {
   return loadDays().find((d) => d.date === date);
 }
 
-export function saveDayEntry(entry: Omit<CycleDay, "id" | "createdAt" | "updatedAt">): CycleDay {
+function syncCycleToBackend(entry: Omit<CycleDay, "id" | "createdAt" | "updatedAt">) {
+  // Only sync period days (or days with symptoms/notes) to the backend database
+  const rawFlow = String((entry as Record<string, unknown>).flow || "medium").toLowerCase();
+  const flow = ["light", "medium", "heavy"].includes(rawFlow) ? rawFlow : "medium";
+  const symptoms = Array.isArray((entry as Record<string, unknown>).symptoms)
+    ? (entry as Record<string, unknown>).symptoms
+    : [];
+  const notes = typeof (entry as Record<string, unknown>).notes === "string"
+    ? (entry as Record<string, unknown>).notes
+    : null;
+
+  api.post("/api/cycle-entries", {
+    started_at: entry.date,
+    ended_at: entry.date,
+    flow,
+    symptoms,
+    notes,
+  }).catch((err: unknown) => console.warn("Background cycle sync skipped:", err));
+}
+
+  export function saveDayEntry(entry: Omit<CycleDay, "id" | "createdAt" | "updatedAt">): CycleDay {
   const days = loadDays();
   const existing = days.find((d) => d.date === entry.date);
   const now = new Date().toISOString();
+  syncCycleToBackend(entry);
 
   if (existing) {
     const updated: CycleDay = { ...existing, ...entry, updatedAt: now };

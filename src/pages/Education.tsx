@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, BookOpen, Bookmark, BookmarkCheck, X, ArrowLeft, Clock, ExternalLink } from "lucide-react";
+import { Search, BookOpen, Bookmark, BookmarkCheck, X, ArrowLeft, Clock, ExternalLink, MessageCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
+import { VoiceMicButton } from "../components/ui/VoiceMicButton";
 
 interface Article {
   id: string;
@@ -236,6 +237,28 @@ export default function Education() {
   const [selectedArticle, setSelectedArticle] = useState<ArticleDetail | null>(null);
   const [loadingArticle, setLoadingArticle] = useState(false);
 
+  const [qaQuery, setQaQuery] = useState("");
+  const [qaResults, setQaResults] = useState<{ question: string; answer: string }[]>([]);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaSearched, setQaSearched] = useState(false);
+
+  async function handleAskQuestion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!qaQuery.trim()) return;
+    setQaLoading(true);
+    setQaSearched(true);
+    try {
+      const data = await api.get<{ results: { question: string; answer: string }[] }>(
+        `/api/education/ask?q=${encodeURIComponent(qaQuery.trim())}&limit=3`
+      );
+      setQaResults(data.results || []);
+    } catch {
+      setQaResults([]);
+    } finally {
+      setQaLoading(false);
+    }
+  }
+
   useEffect(() => {
     api.get<Article[]>("/api/education")
       .then((data) => { if (data && data.length > 0) setArticles(data); })
@@ -291,6 +314,52 @@ export default function Education() {
         <p className="text-xs font-semibold text-pink uppercase tracking-wider mb-2">{t("education.title")}</p>
         <h1 className="text-display-md font-serif text-ink">{t("education.title")}</h1>
         <p className="text-ink/60 mt-2 max-w-xl">{t("education.subtitle")}</p>
+      </div>
+
+      {/* Women's Health Knowledge Base Q&A (altaidevorg/women-health-mini) */}
+      <div className="bg-blush border border-border rounded-xl p-6 mb-8">
+        <div className="flex items-center gap-2 mb-2">
+          <MessageCircle size={18} className="text-deep" />
+          <h2 className="min-w-0 font-serif font-semibold text-ink text-xl md:text-display-md">
+            Ask a Women's Health Question
+          </h2>
+        </div>
+        <p className="text-xs text-ink/60 mb-4">
+          Search 10,348+ curated medical Q&A entries on periods, anemia, PCOS, and reproductive wellness.
+        </p>
+
+        <form onSubmit={handleAskQuestion} className="flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={qaQuery}
+            onChange={(e) => setQaQuery(e.target.value)}
+            placeholder="e.g., iron-rich foods"
+            className="min-w-0 flex-1 basis-full px-4 py-2.5 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-pink sm:basis-0"
+          />
+          <VoiceMicButton onTranscript={(spoken) => setQaQuery(spoken)} />
+          <button
+            type="submit"
+            disabled={qaLoading || !qaQuery.trim()}
+            className="px-5 py-2.5 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 flex items-center gap-2"
+          >
+            {qaLoading ? <Loader2 size={15} className="animate-spin" /> : "Ask"}
+          </button>
+        </form>
+
+        {qaSearched && !qaLoading && (
+          <div className="mt-5 space-y-3">
+            {qaResults.length === 0 ? (
+              <p className="text-xs text-ink/60">No matching answers found. Try simpler keywords like "iron" or "cramps".</p>
+            ) : (
+              qaResults.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-lg border border-border p-4">
+                  <p className="text-sm font-semibold text-deep mb-1.5">Q: {item.question}</p>
+                  <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-line">{item.answer}</p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Search */}

@@ -74,6 +74,19 @@ CREATE TABLE IF NOT EXISTS questionnaire_responses (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS anemia_screenings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    modality TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    anemia_probability REAL NOT NULL,
+    estimated_hemoglobin REAL,
+    risk_tier TEXT NOT NULL,
+    roi_confidence REAL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_anemia_screenings_created_at ON anemia_screenings(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_cycle_entries_started_at ON cycle_entries(started_at);
 CREATE INDEX IF NOT EXISTS idx_screening_events_created_at ON screening_events(created_at);
 """

@@ -4,7 +4,9 @@ Articles are original, general health education. They never constitute
 individualized medical advice, and references point to reputable public
 health organizations without inventing statistics.
 """
-
+import re
+from fastapi import APIRouter, HTTPException, Query
+from app.database import query, row_to_dict
 from fastapi import APIRouter, HTTPException
 
 from app.schemas import EducationArticle, EducationArticleDetail
@@ -297,6 +299,30 @@ _REFERENCES: dict[str, list[str]] = {aid: _extract_refs(_CONTENT[aid]) for aid i
 def list_articles():
     return list(_ARTICLES.values())
 
+
+
+@router.get("/education/ask")
+def search_womens_health_qa(q: str = Query(..., min_length=2), limit: int = 5):
+    tokens = re.findall(r"[a-zA-Z0-9]+", q.lower())
+    if not tokens:
+        raise HTTPException(status_code=400, detail="Please enter valid search keywords.")
+
+    fts_query = " OR ".join(tokens)
+    rows = query(
+        """
+        SELECT question, answer, bm25(women_health_qa) AS score
+        FROM women_health_qa
+        WHERE women_health_qa MATCH ?
+        ORDER BY score
+        LIMIT ?
+        """,
+        (fts_query, limit),
+    )
+    return {
+        "query": q,
+        "dataset": "altaidevorg/women-health-mini",
+        "results": [row_to_dict(r) for r in rows],
+    }
 
 @router.get("/education/{article_id}", response_model=EducationArticleDetail)
 def get_article(article_id: str):

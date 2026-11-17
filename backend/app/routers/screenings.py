@@ -6,8 +6,10 @@ import numpy as np
 import torch
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
+from app.database import execute_lastrowid, query, row_to_dict
 
 from build_unified_model import HerHealthUnifiedModel
+from app.ml.nail_predictor import predict_nail_anemia
 
 router = APIRouter(prefix="/api/screenings", tags=["Anemia Screening"])
 
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/api/screenings", tags=["Anemia Screening"])
 # ---------------------------------------------------------------------
 MODEL_PATH = os.getenv("HERHEALTH_MODEL_PATH", "herhealth_unified.pt")
 INPUT_SIZE = 640
-SEG_CONF_THRESH = 0.45
+SEG_CONF_THRESH = 0.20
 ANEMIA_PROB_CUTOFF = 0.50
 HB_ANEMIA_CUTOFF = 11.8        # g/dL  (WHO: 12.0 non-pregnant women, 11.0 pregnant)
 HIGH_RISK_PROB = 0.80
@@ -81,7 +83,7 @@ def _risk(prob: float, hb: float):
 # NOTE: plain `def` (not `async def`): FastAPI runs it in a worker thread, so the
 # blocking forward pass doesn't freeze the event loop, and inference_mode really applies.
 @router.post("/analyze")
-def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = False):
+def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = True):
     raw = file.file.read(MAX_UPLOAD_BYTES + 1)
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file.")
@@ -118,6 +120,56 @@ def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = Fa
         round(max(0.0, min(orig_w, (x2 - left) / scale)), 1),
         round(max(0.0, min(orig_h, (y2 - top) / scale)), 1),
     ]
+
+@router.post("/analyze-nail")
+def analyze_nail_image(file: UploadFile = File(...), high_sensitivity: bool = False):
+    raw = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file.")
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Image is larger than 8 MB.")
+
+    try:
+        res = predict_nail_anemia(raw, high_sensitivity=high_sensitivity)
+        prob = res["nail_anemia_probability"]
+        tier = "High" if prob >= 0.80 else ("Moderate" if res["nail_is_anemic"] else "Low")
+
+        record_id = execute_lastrowid(
+            """
+            INSERT INTO anemia_screenings
+                (modality, model_name, anemia_probability, estimated_hemoglobin, risk_tier, roi_confidence)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("nail", res["nail_model"], prob, None, tier, None),
+        )
+        res["risk_tier"] = tier
+        res["record_id"] = record_id
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Nail inference failed: {str(e)}")
+
+
+@router.get("/history")
+def get_screening_history(limit: int = 10):
+    rows = query(
+        """
+        SELECT id, modality, model_name, anemia_probability, estimated_hemoglobin, risk_tier, roi_confidence, created_at
+        FROM anemia_screenings
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    return {"items": [row_to_dict(r) for r in rows]}
+
+    record_id = execute_lastrowid(
+     """
+     INSERT INTO anemia_screenings
+         (modality, model_name, anemia_probability, estimated_hemoglobin, risk_tier, roi_confidence)
+     VALUES (?, ?, ?, ?, ?, ?)
+     """,
+     ("eyelid", MODEL_NAME, round(prob, 4), round(hb, 1), tier, round(out["seg_confidence"], 3)),
+ )
 
     return {
         "model": MODEL_NAME,

@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, X, AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { Upload, X, AlertTriangle, Info, CheckCircle , Loader2} from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const MAX_SIZE_MB = 10;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -18,53 +20,180 @@ function emptyUpload(): UploadState {
 export default function AnemiaScreening() {
   const { t } = useTranslation();
   const [consented, setConsented] = useState(false);
+  //const [eyelid, setEyelid] = useState<UploadState>(emptyUpload());
+  //const [nail, setNail] = useState<UploadState>(emptyUpload());
+  //const [submitted, setSubmitted] = useState(false);
   const [eyelid, setEyelid] = useState<UploadState>(emptyUpload());
   const [nail, setNail] = useState<UploadState>(emptyUpload());
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   const eyelidRef = useRef<HTMLInputElement>(null);
   const nailRef = useRef<HTMLInputElement>(null);
 
-  function handleFile(
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: (s: UploadState) => void
-  ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
-      return;
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setter({ file: null, preview: null, error: t("forms.upload.size_limit", { max_size: MAX_SIZE_MB }) });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setter({ file, preview: ev.target?.result as string, error: null });
-    };
-    reader.readAsDataURL(file);
-  }
+  // function handleFile(
+  //   e: React.ChangeEvent<HTMLInputElement>,
+  //   setter: (s: UploadState) => void
+  // ) {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+  //   if (!ALLOWED_TYPES.includes(file.type)) {
+  //     setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
+  //     return;
+  //   }
+  //   if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+  //     setter({ file: null, preview: null, error: t("forms.upload.size_limit", { max_size: MAX_SIZE_MB }) });
+  //     return;
+  //   }
+  //   const reader = new FileReader();
+  //   reader.onload = (ev) => {
+  //     setter({ file, preview: ev.target?.result as string, error: null });
+  //   };
+  //   reader.readAsDataURL(file);
+  // }
 
-  function handleSubmit(e: React.FormEvent) {
+  // function handleSubmit(e: React.FormEvent) {
+  //   e.preventDefault();
+  //   if (!eyelid.file && !nail.file) return;
+  //   // No image is uploaded to any server. We just record intent.
+  //   setSubmitted(true);
+  // }
+
+  // if (submitted) {
+  //   return (
+  //     <div className="page-container py-12 max-w-lg">
+  //       <div className="bg-white rounded-xl border border-border shadow-soft p-10 text-center">
+  //         <CheckCircle size={40} className="mx-auto text-sage mb-4" />
+  //         <h2 className="font-serif text-section text-ink mb-3">Images received (locally)</h2>
+  //         <p className="text-sm text-ink/70 leading-relaxed mb-6">
+  //           Your images have been validated locally. No image content has been sent to any server or analyzed by any model.
+  //           Image analysis is not available in this prototype. Please consult a clinician for any health concerns.
+  //         </p>
+  //         <button
+  //           onClick={() => { setSubmitted(false); setEyelid(emptyUpload()); setNail(emptyUpload()); setConsented(false); }}
+  //           className="px-5 py-2 bg-deep text-white text-sm rounded-lg hover:bg-pink transition-colors"
+  //         >
+  //           Start over
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  function handleFile(
+  e: React.ChangeEvent<HTMLInputElement>,
+  setter: (s: UploadState) => void
+) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
+    return;
+  }
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    setter({ file: null, preview: null, error: t("forms.upload.size_limit", { max_size: MAX_SIZE_MB }) });
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    setter({ file, preview: ev.target?.result as string, error: null });
+  };
+  reader.readAsDataURL(file);
+}
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!eyelid.file && !nail.file) return;
-    // No image is uploaded to any server. We just record intent.
-    setSubmitted(true);
+
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      let eyeData = null;
+      let nailData = null;
+
+      if (eyelid.file) {
+        const eyeForm = new FormData();
+        eyeForm.append("file", eyelid.file);
+        const res = await fetch(`${API_BASE}/api/screenings/analyze`, {
+          method: "POST",
+          body: eyeForm,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.detail?.message || data?.detail || "Eyelid analysis failed.");
+        }
+        eyeData = data;
+      }
+
+      if (nail.file) {
+        const nailForm = new FormData();
+        nailForm.append("file", nail.file);
+        const res = await fetch(`${API_BASE}/api/screenings/analyze-nail`, {
+          method: "POST",
+          body: nailForm,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.detail || "Nail analysis failed.");
+        }
+        nailData = data;
+      }
+
+      setResult({ eye: eyeData, nail: nailData });
+    } catch (err: any) {
+      setApiError(err.message || "Could not connect to server.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  if (submitted) {
+  if (result) {
     return (
       <div className="page-container py-12 max-w-lg">
-        <div className="bg-white rounded-xl border border-border shadow-soft p-10 text-center">
+        <div className="bg-white rounded-xl border border-border shadow-soft p-8 text-center">
           <CheckCircle size={40} className="mx-auto text-sage mb-4" />
-          <h2 className="font-serif text-section text-ink mb-3">Images received (locally)</h2>
-          <p className="text-sm text-ink/70 leading-relaxed mb-6">
-            Your images have been validated locally. No image content has been sent to any server or analyzed by any model.
-            Image analysis is not available in this prototype. Please consult a clinician for any health concerns.
+          <h2 className="font-serif text-section text-ink mb-4">Screening Analysis Complete</h2>
+
+         
+
+          {result.eye && (
+            <div className="mb-6 text-left">
+              <p className="text-xs font-semibold text-deep uppercase mb-2">
+                Inner Eyelid Result ({result.eye.risk_tier} Risk)
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blush p-3 rounded-xl border border-border">
+                  <p className="text-xs text-ink/60">Est. Hemoglobin</p>
+                  <p className="text-lg font-bold text-deep">{result.eye.estimated_hemoglobin_g_dl} g/dL</p>
+                </div>
+                <div className="bg-blush p-3 rounded-xl border border-border">
+                  <p className="text-xs text-ink/60">Anemia Probability</p>
+                  <p className="text-lg font-bold text-deep">{(result.eye.anemia_probability * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          
+          {result.nail && (
+            <div className="mb-6 text-left">
+              <p className="text-xs font-semibold text-deep uppercase mb-2">
+                Fingernail Bed Result ({result.nail.nail_is_anemic ? "Anemia Risk Detected" : "Normal"})
+              </p>
+              <div className="bg-blush p-3 rounded-xl border border-border">
+                <p className="text-xs text-ink/60">Nail Anemia Probability</p>
+                <p className="text-lg font-bold text-deep">{(result.nail.nail_anemia_probability * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-ink/70 leading-relaxed mb-6">
+            Educational wellness prototype only. A clinical CBC blood test is required for medical diagnosis.
           </p>
           <button
-            onClick={() => { setSubmitted(false); setEyelid(emptyUpload()); setNail(emptyUpload()); setConsented(false); }}
+            onClick={() => { setResult(null); setApiError(null); setEyelid(emptyUpload()); setNail(emptyUpload()); setConsented(false); }}
             className="px-5 py-2 bg-deep text-white text-sm rounded-lg hover:bg-pink transition-colors"
           >
             Start over
@@ -121,8 +250,13 @@ export default function AnemiaScreening() {
       <div className="flex items-center justify-between gap-4 mb-6">
         <StepBadge number={1} label={t("screening.consent_step", "Step 1: Consent")} active={consented} done={consented} />
         <StepBadge number={2} label={t("screening.upload_step", "Step 2: Photos")} active={consented && (!eyelid.file && !nail.file)} done={!!(eyelid.file || nail.file)} />
-        <StepBadge number={3} label={t("screening.submit_step", "Step 3: Send")} active={consented && (!!eyelid.file || !!nail.file)} done={submitted} />
+        <StepBadge number={3} label={t("screening.submit_step", "Step 3: Send")} active={consented && (!!eyelid.file || !!nail.file)} done={!!result} />
       </div>
+      {apiError && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-x1 p-4 mb-6 text-sm">
+          {apiError}
+          </div>
+      )}
       <form onSubmit={handleSubmit} className={!consented ? "opacity-50 pointer-events-none" : ""}>
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <UploadZone
@@ -144,12 +278,12 @@ export default function AnemiaScreening() {
         </div>
 
         <button
-          type="submit"
-          disabled={!consented || (!eyelid.file && !nail.file)}
-          className="w-full py-3 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {t("screening.submit")}
-        </button>
+       type="submit"
+       disabled={!consented || (!eyelid.file && !nail.file) || loading}
+       className="w-full py-3 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+     >
+       {loading ? <><Loader2 size={16} className="animate-spin" /> Analyzing...</> : t("screening.submit")}
+     </button>
       </form>
     </div>
   );
@@ -227,7 +361,8 @@ function StepBadge({
   active: boolean;
   done: boolean;
 }) {
-  const SYMBOLS = { 1: "📝", 2: "📷", 3: "✅" };
+  //const SYMBOLS = { 1: "📝", 2: "📷", 3: "✅" };
+  const SYMBOLS: Record<number, string> = { 1: "📝", 2: "📷", 3: "✅" };
   return (
     <div className="flex flex-col items-center gap-1.5 flex-1">
       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm border ${

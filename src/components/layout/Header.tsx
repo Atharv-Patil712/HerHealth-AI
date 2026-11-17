@@ -15,12 +15,13 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/", labelKey: "nav.home", icon: Home, symbol: "🏠" },
-  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, symbol: "📊" },
-  { href: "/cycle-tracking", labelKey: "nav.cycle_tracking", icon: Droplets, symbol: "🩸" },
-  { href: "/education", labelKey: "nav.education", icon: BookOpen, symbol: "📚" },
-  { href: "/journal", labelKey: "nav.journal", icon: BookMarked, symbol: "📓" },
-  { href: "/image-testing", labelKey: "nav.image_testing", icon: Image, symbol: "🖼️" },
+  { href: "/", labelKey: "nav.home", icon: Home},
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/cycle-tracking", labelKey: "nav.cycle_tracking", icon: Droplets },
+  { href: "/education", labelKey: "nav.education", icon: BookOpen },
+  { href:  "/screening/anemia", labelKey: "nav.anemia_screening", icon: Image},
+  { href: "/journal", labelKey: "nav.journal", icon: BookMarked },
+  //{ href: "/image-testing", labelKey: "nav.image_testing", icon: Image},
 ];
 
 interface Language {
@@ -64,7 +65,7 @@ export const Header = () => {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1 text-sm" aria-label="Primary navigation">
+        <nav className="hidden xl:flex items-center gap-1 text-sm" aria-label="Primary navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = itemActive(item.href, location);
@@ -95,7 +96,7 @@ export const Header = () => {
 
         <div className="flex items-center gap-2">
           {/* Language selector — desktop */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden xl:block">
             <button
               onClick={() => setLangOpen((o) => !o)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-ink/60 hover:bg-rose hover:text-deep transition-colors"
@@ -134,7 +135,7 @@ export const Header = () => {
 
           {/* Mobile menu button */}
           <button
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md border border-border text-ink hover:bg-rose"
+            className="xl:hidden inline-flex items-center justify-center w-10 h-10 rounded-md border border-border text-ink hover:bg-rose"
             onClick={() => { setOpen((o) => !o); setLangOpen(false); }}
             aria-expanded={open}
             aria-controls="mobile-menu"
@@ -152,7 +153,10 @@ export const Header = () => {
 
       {/* Mobile menu */}
       {open && (
-        <div id="mobile-menu" className="md:hidden border-t border-border bg-white shadow-soft">
+        <div
+          id="mobile-menu"
+          className="xl:hidden max-h-[calc(100dvh-4.5rem)] overflow-y-auto overscroll-contain border-t border-border bg-white shadow-soft"
+        >
           <nav aria-label="Mobile navigation" className="page-container py-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

@@ -37,10 +37,10 @@ const SHORTCUT_ICONS: Record<string, React.ElementType> = {
 };
 
 const SHORTCUT_SYMBOLS: Record<string, string> = {
-  "cycle-tracking": "🩸",
-  "anemia-screening": "🩺",
-  "health-education": "📖",
-  reports: "📋",
+  // "cycle-tracking": "🩸",
+  // "anemia-screening": "🩺",
+  // "health-education": "📖",
+  // reports: "📋",
 };
 
 function formatDate(iso: string): string {
@@ -92,13 +92,34 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 export default function Dashboard() {
+ // const [data, setData] = useState<DashboardData | null>(null);
+ // const [loading, setLoading] = useState(true);
+  //const [error, setError] = useState<string | null>(null);
+
+  interface AnemiaScreeningRecord {
+  id: number;
+  modality: "eyelid" | "nail";
+  model_name: string;
+  anemia_probability: number;
+  estimated_hemoglobin: number | null;
+  risk_tier: "Low" | "Moderate" | "High";
+  created_at: string;
+}
+
   const [data, setData] = useState<DashboardData | null>(null);
+  const [anemiaHistory, setAnemiaHistory] = useState<AnemiaScreeningRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<DashboardData>("/api/dashboard")
-      .then(setData)
+    Promise.all([
+      api.get<DashboardData>("/api/dashboard"),
+      api.get<{ items: AnemiaScreeningRecord[] }>("/api/screenings/history").catch(() => ({ items: [] })),
+    ])
+      .then(([dashData, historyData]) => {
+        setData(dashData);
+        setAnemiaHistory(historyData.items || []);
+      })
       .catch((err) => {
         setError(
           err instanceof Error ? err.message : "Could not load your dashboard."
@@ -144,14 +165,16 @@ export default function Dashboard() {
     );
   }
 
+  const welcomeDetail = data.welcome.replace(/^Welcome back[.!]?\s*/i, "").trim();
+
   return (
     <div className="page-container py-8">
       <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-10">
         <div>
-          <p className="text-xs font-sans font-semibold text-pink tracking-wider uppercase mb-1">
-            Welcome back
-          </p>
-          <h1 className="text-display-md font-serif text-ink">{data.welcome}</h1>
+          <h1 className="text-display-md font-serif text-ink">Welcome back</h1>
+          {welcomeDetail && (
+            <p className="text-sm text-ink/70 mt-2 max-w-md">{welcomeDetail}</p>
+          )}
           <p className="text-sm text-ink/70 mt-2 max-w-md">
             {new Date().toLocaleDateString(undefined, {
               weekday: "long",
@@ -169,39 +192,30 @@ export default function Dashboard() {
           {data.shortcuts.map((shortcut) => {
             const Icon = SHORTCUT_ICONS[shortcut.key];
             return (
-              <Card
-                key={shortcut.key}
-                className={
-                  "group flex flex-col gap-3 p-6 transition-colors hover:bg-rose" +
-                  (shortcut.coming_soon ? " bg-white/50" : " bg-white")
-                }
+             <Card
+              key={shortcut.key}
+              className="group flex flex-col gap-3 p-6 transition-colors hover:bg-rose bg-white"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl shrink-0">{SHORTCUT_SYMBOLS[shortcut.key]}</span>
+                {Icon ? <Icon className="shrink-0 w-6 h-6" /> : null}
+                <span className="ml-auto text-xs font-semibold text-pink">
+                  Available
+                </span>
+              </div>
+              <CardTitle>
+                <Link to={shortcut.href} className="text-ink hover:text-deep">
+                  {shortcut.label}
+                </Link>
+              </CardTitle>
+              <CardDescription>{shortcut.description}</CardDescription>
+              <Link
+                to={shortcut.href}
+                className="mt-auto inline-flex items-center gap-1.5 text-xs font-medium text-deep hover:text-deep/80"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-xl shrink-0">{SHORTCUT_SYMBOLS[shortcut.key]}</span>
-                  {Icon ? <Icon className="shrink-0 w-6 h-6" /> : null}
-                  <span className="ml-auto text-xs font-semibold text-pink">
-                    {shortcut.coming_soon ? "Coming soon" : "Available"}
-                  </span>
-                </div>
-                <CardTitle>
-                  <Link to={shortcut.href} className="text-ink hover:text-deep">
-                    {shortcut.label}
-                  </Link>
-                </CardTitle>
-                <CardDescription>{shortcut.description}</CardDescription>
-                {shortcut.coming_soon ? (
-                  <p className="text-xs text-ink/50 mt-auto">
-                    This feature arrives in the next development milestone.
-                  </p>
-                ) : (
-                  <Link
-                    to={shortcut.href}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-deep hover:text-deep/80"
-                  >
-                    Go <ChevronRight size={14} strokeWidth={2} />
-                  </Link>
-                )}
-              </Card>
+                Go <ChevronRight size={14} strokeWidth={2} />
+              </Link>
+            </Card>
             );
           })}
         </div>
@@ -249,7 +263,7 @@ export default function Dashboard() {
       </section>
 
       <section className="mt-16 grid gap-12 lg:grid-cols-2" aria-label="Screening and activity">
-        <div>
+        {/* <div>
           <h2 className="text-section mb-6">Screening history</h2>
           {data.screening_history.length > 0 ? (
             <ul className="space-y-4">
@@ -282,18 +296,42 @@ export default function Dashboard() {
               body="When you complete an anemia screening, it will appear here with its status. Image analysis is not available yet."
             />
           )}
-        </div>
+        </div> */}
 
-        <div>
-          <h2 className="text-section mb-6">Recent activity</h2>
-          <EmptyState
-            title="Nothing recent yet"
-            body="Your cycle entries, screening sessions, and questionnaire summaries will appear here."
-            action={
-              <EmptyStateAction to="/cycle-tracking">Log a period</EmptyStateAction>
-            }
-          />
-        </div>
+        {/* <div>
+          <h2 className="text-section mb-6">Screening history</h2>
+          {anemiaHistory.length > 0 ? (
+            <ul className="space-y-4">
+              {anemiaHistory.map((item) => (
+                <li key={item.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-white">
+                  <div>
+                    <p className="text-sm font-medium text-ink capitalize">
+                      {item.modality === "eyelid" ? "Inner Eyelid Screening" : "Fingernail Screening"}
+                    </p>
+                    <p className="text-xs text-ink/60 mt-0.5">
+                      {item.estimated_hemoglobin !== null ? `Est. Hb: ${item.estimated_hemoglobin} g/dL · ` : ""}
+                      Probability: {(item.anemia_probability * 100).toFixed(1)}%
+                    </p>
+                    <p className="text-[11px] text-ink/40 mt-0.5">
+                      {new Date(item.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-deep bg-cream px-2.5 py-1 rounded">
+                    {item.risk_tier} Risk
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title="No screening sessions yet"
+              body="When you complete an anemia screening, your hemoglobin estimate, probability, and risk tier will appear here."
+              action={
+                <EmptyStateAction to="/screening/anemia">Start screening</EmptyStateAction>
+              }
+            />
+          )}
+        </div> */}
       </section>
       <section className="mt-16" aria-label="Suggested reading">
         <div className="flex flex-col lg:flex-row lg:items-end lg:gap-6 mb-6">
