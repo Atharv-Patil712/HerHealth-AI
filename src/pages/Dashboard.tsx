@@ -96,29 +96,35 @@ export default function Dashboard() {
  // const [loading, setLoading] = useState(true);
   //const [error, setError] = useState<string | null>(null);
 
-  interface AnemiaScreeningRecord {
-  id: number;
-  modality: "eyelid" | "nail";
-  model_name: string;
-  anemia_probability: number;
-  estimated_hemoglobin: number | null;
-  risk_tier: "Low" | "Moderate" | "High";
-  created_at: string;
-}
+//   interface AnemiaScreeningRecord {
+//   id: number;
+//   modality: "eyelid" | "nail";
+//   model_name: string;
+//   anemia_probability: number;
+//   estimated_hemoglobin: number | null;
+//   risk_tier: "Low" | "Moderate" | "High";
+//   created_at: string;
+// }
 
   const [data, setData] = useState<DashboardData | null>(null);
-  const [anemiaHistory, setAnemiaHistory] = useState<AnemiaScreeningRecord[]>([]);
+  //const [anemiaHistory, setAnemiaHistory] = useState<AnemiaScreeningRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      api.get<DashboardData>("/api/dashboard"),
-      api.get<{ items: AnemiaScreeningRecord[] }>("/api/screenings/history").catch(() => ({ items: [] })),
-    ])
-      .then(([dashData, historyData]) => {
+  // useEffect(() => {
+  //   Promise.all([
+  //     api.get<DashboardData>("/api/dashboard"),
+  //     api.get<{ items: AnemiaScreeningRecord[] }>("/api/screenings/history").catch(() => ({ items: [] })),
+  //   ])
+  //     .then(([dashData, historyData]) => {
+  //       setData(dashData);
+  //       setAnemiaHistory(historyData.items || []);
+  //     })
+  useEffect(() => {  
+  api
+      .get<DashboardData>("/api/dashboard")
+      .then((dashData) => {
         setData(dashData);
-        setAnemiaHistory(historyData.items || []);
       })
       .catch((err) => {
         setError(
@@ -126,7 +132,9 @@ export default function Dashboard() {
         );
       })
       .finally(() => setLoading(false));
-  }, []);
+
+    },[]);
+  
 
   if (loading) {
     return (
