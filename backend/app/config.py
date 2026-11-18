@@ -16,12 +16,12 @@ class Settings(BaseSettings):
     # Relative paths are resolved against the backend "data" directory.
     database_url: str = "sqlite:///herhealth.db"
 
-    # CORS is intentionally limited to local development origins only.
+    # CORS origins must exactly match the browser's frontend origin.
     cors_origins: List[str] = [
-                                "http://localhost:5173", 
-                                "http://127.0.0.1:5173",
-                                "https://onrender.com"
-                                ]
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://herhealth-ai-frontend.onrender.com",
+    ]
 
     # Screening image constraints.
     max_upload_size_mb: int = 5

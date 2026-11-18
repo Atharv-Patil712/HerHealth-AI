@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
-import { API_BASE } from "../lib/config";
+import { api } from "../lib/api";
 
 const MAX_SIZE_MB = 10;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -79,38 +79,17 @@ export default function AnemiaScreening() {
       const formData = new FormData();
       formData.append("file", eyelid.file);
 
-      const endpoint = `${API_BASE}/api/screenings/analyze`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        body: formData,
-      });
-
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        body = await response.text();
-      }
-
-      if (!response.ok) {
-        let message = "Something went wrong. Please try again.";
-        if (body && typeof body === "object" && "detail" in body) {
-          const detail = (body as { detail: unknown }).detail;
-          if (detail && typeof detail === "object" && "message" in detail) {
-            message = String((detail as { message: unknown }).message);
-          } else if (typeof detail === "string") {
-            message = detail;
-          }
-        } else if (typeof body === "string" && body.trim()) {
-          message = body;
-        }
-        setApiError(message);
-        return;
-      }
-
-      setResult(body as ScreeningResult);
-    } catch {
-      setApiError("Network error. Unable to reach the screening service. Please check your connection and try again.");
+      const body = await api.postForm<ScreeningResult>(
+        "/api/screenings/analyze",
+        formData
+      );
+      setResult(body);
+    } catch (err) {
+      setApiError(
+        err instanceof Error
+          ? err.message
+          : "Network error. Unable to reach the screening service. Please check your connection and try again."
+      );
     } finally {
       setLoading(false);
     }

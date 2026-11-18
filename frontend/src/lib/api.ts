@@ -3,6 +3,7 @@
  * not scattered across components. Requests are relative; the Vite dev server
  * proxies /api to the local FastAPI backend.
  */
+import { API_BASE } from "./config";
 
 export class ApiError extends Error {
   constructor(
@@ -39,7 +40,9 @@ async function request<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(input.toString(), {
+  const rawUrl = input.toString();
+  const url = rawUrl.startsWith("/") ? `${API_BASE}${rawUrl}` : rawUrl;
+  const response = await fetch(url, {
     ...init,
     headers,
   });
@@ -47,11 +50,14 @@ async function request<T>(
   const body = await parseBody(response);
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      (body as { detail?: string })?.detail || response.statusText || "Request failed",
-      body
-    );
+    const detail = (body as { detail?: unknown } | null)?.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : detail && typeof detail === "object" && "message" in detail
+          ? String(detail.message)
+          : response.statusText || "Request failed";
+    throw new ApiError(response.status, message, body);
   }
 
   return body as T;

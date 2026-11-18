@@ -28,11 +28,14 @@ In the Vercel dashboard, go to **Settings → Environment Variables** and add:
 
 | Name | Value | Environments |
 |------|-------|--------------|
-| `VITE_API_BASE` | `https://your-backend-url.com` | Production, Preview, Development |
+| `VITE_API_BASE` | `https://herhealth-ai-w4yw.onrender.com` | Production, Preview |
 
-Replace `https://your-backend-url.com` with your deployed FastAPI backend URL.
+The backend's CORS allowlist must also include the exact frontend origin:
+`https://herhealth-ai-frontend.onrender.com`. Local development uses the Vite
+proxy when `VITE_API_BASE` is unset.
 
-Without this, the dashboard API calls will fail because they default to `http://localhost:8000`.
+The production frontend defaults to the deployed Render API URL if this variable
+is unset.
 
 ## What's Included
 

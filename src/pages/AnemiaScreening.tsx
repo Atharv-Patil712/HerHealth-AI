@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle , Loader2} from "lucide-react";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { api } from "../lib/api";
 
 const MAX_SIZE_MB = 10;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -116,34 +115,18 @@ export default function AnemiaScreening() {
       if (eyelid.file) {
         const eyeForm = new FormData();
         eyeForm.append("file", eyelid.file);
-        const res = await fetch(`${API_BASE}/api/screenings/analyze`, {
-          method: "POST",
-          body: eyeForm,
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.detail?.message || data?.detail || "Eyelid analysis failed.");
-        }
-        eyeData = data;
+        eyeData = await api.postForm("/api/screenings/analyze", eyeForm);
       }
 
       if (nail.file) {
         const nailForm = new FormData();
         nailForm.append("file", nail.file);
-        const res = await fetch(`${API_BASE}/api/screenings/analyze-nail`, {
-          method: "POST",
-          body: nailForm,
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.detail || "Nail analysis failed.");
-        }
-        nailData = data;
+        nailData = await api.postForm("/api/screenings/analyze-nail", nailForm);
       }
 
       setResult({ eye: eyeData, nail: nailData });
-    } catch (err: any) {
-      setApiError(err.message || "Could not connect to server.");
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Could not connect to server.");
     } finally {
       setLoading(false);
     }
