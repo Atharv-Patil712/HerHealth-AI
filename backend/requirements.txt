@@ -1,9 +1,11 @@
+--extra-index-url https://pytorch.org
 fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
 python-multipart
 httpx
+torch
 numpy
 pillow
 PyJWT
