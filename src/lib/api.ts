@@ -3,7 +3,7 @@
  * not scattered across components. Requests are relative; the Vite dev server
  * proxies /api to the local FastAPI backend.
  */
-
+const API_BASE = (import.meta.env.VITE_API_BASE || "https://herhealth-ai-w4yw.onrender.com").replace(/\/$/ , "");
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -42,7 +42,9 @@ async function request<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(input.toString(), {
+   const rawUrl = input.toString();
+  const url = rawUrl.startsWith("/") ? `${API_BASE}${rawUrl}` : rawUrl;
+  const response = await fetch(url, {
     ...init,
     headers,
   });
