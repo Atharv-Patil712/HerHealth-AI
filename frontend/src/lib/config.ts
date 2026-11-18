@@ -7,4 +7,4 @@ export const SUPPORTING_MESSAGE =
 
 // Relative path: Vite dev server proxies /api to http://localhost:8000.
 // No third-party backend URL is embedded in frontend code.
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+export const API_BASE = (import.meta.env.VITE_API_BASE || "https://onrender.com").replace(/\/$/, "");
