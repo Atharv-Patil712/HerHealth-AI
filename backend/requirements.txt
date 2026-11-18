@@ -1,14 +1,14 @@
---extra-index-url https://pytorch.org
 fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
 python-multipart
 httpx
-torch
 numpy
 pillow
 PyJWT
 joblib
 huggingface-hub
 scikit-learn==1.7.2
+--extra-index-url https://pytorch.org
+torch==2.5.1+cpu
