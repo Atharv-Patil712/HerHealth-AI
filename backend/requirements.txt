@@ -3,12 +3,10 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 python-multipart
-pytest
 httpx
-torch
 numpy
 pillow
 PyJWT
 joblib
 huggingface-hub
-scikit-learn
+scikit-learn==1.7.2

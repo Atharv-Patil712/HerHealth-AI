@@ -71,6 +71,9 @@ spec.loader.exec_module(nail_inference)
 scaler = joblib.load(scaler_path)
 mlp_model = joblib.load(model_path)
 
+import gc
+gc.collect()
+
 
 def predict_nail_anemia(image_bytes: bytes, high_sensitivity: bool = False) -> dict:
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
