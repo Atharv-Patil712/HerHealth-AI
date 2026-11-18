@@ -30,9 +30,13 @@ In the Vercel dashboard, go to **Settings → Environment Variables** and add:
 |------|-------|--------------|
 | `VITE_API_BASE` | `https://herhealth-ai-w4yw.onrender.com` | Production, Preview |
 
-The backend currently allows browser requests from any origin and does not
-allow credentialed cross-origin requests. Local development uses the Vite
-proxy when `VITE_API_BASE` is unset.
+The backend allows browser requests only from
+`https://herhealth-ai-frontend.onrender.com` and does not allow credentialed
+cross-origin requests. If `CORS_ORIGINS` is set in Render, set it to the JSON
+array `["https://herhealth-ai-frontend.onrender.com"]` or remove the override.
+On startup, the backend creates its SQLite schema and downloads/builds the
+women's health Q&A search index if the database does not already contain it.
+Local development uses the Vite proxy when `VITE_API_BASE` is unset.
 
 The production frontend defaults to the deployed Render API URL if this variable
 is unset.
