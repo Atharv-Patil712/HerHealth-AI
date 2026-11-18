@@ -30,8 +30,8 @@ In the Vercel dashboard, go to **Settings → Environment Variables** and add:
 |------|-------|--------------|
 | `VITE_API_BASE` | `https://herhealth-ai-w4yw.onrender.com` | Production, Preview |
 
-The backend's CORS allowlist must also include the exact frontend origin:
-`https://herhealth-ai-frontend.onrender.com`. Local development uses the Vite
+The backend currently allows browser requests from any origin and does not
+allow credentialed cross-origin requests. Local development uses the Vite
 proxy when `VITE_API_BASE` is unset.
 
 The production frontend defaults to the deployed Render API URL if this variable
