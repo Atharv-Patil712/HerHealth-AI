@@ -8,3 +8,4 @@ httpx
 torch
 numpy
 pillow
+PyJWT
