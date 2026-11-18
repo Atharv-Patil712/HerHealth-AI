@@ -40,18 +40,5 @@ def build_knowledge_base():
     print(f"Indexed {len(rows)} women's health Q&A pairs into {DB_PATH}!")
 
 
-def ensure_knowledge_base():
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        exists = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='women_health_qa'"
-        ).fetchone()
-    finally:
-        conn.close()
-
-    if not exists:
-        build_knowledge_base()
-
-
 if __name__ == "__main__":
     build_knowledge_base()

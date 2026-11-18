@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.routers import cycle, dashboard, education, health, questionnaires, screenings
-from build_health_kb import ensure_knowledge_base
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    ensure_knowledge_base()
     yield
 
 

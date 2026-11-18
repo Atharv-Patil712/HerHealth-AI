@@ -34,8 +34,11 @@ The backend allows browser requests only from
 `https://herhealth-ai-frontend.onrender.com` and does not allow credentialed
 cross-origin requests. If `CORS_ORIGINS` is set in Render, set it to the JSON
 array `["https://herhealth-ai-frontend.onrender.com"]` or remove the override.
-On startup, the backend creates its SQLite schema and downloads/builds the
-women's health Q&A search index if the database does not already contain it.
+Set the Render backend build command to
+`pip install -r requirements.txt && python build_health_kb.py` (the backend
+service root directory is `backend`). This builds the women's health Q&A index
+during deployment, outside the memory-limited runtime. App startup creates the
+SQLite schema.
 Local development uses the Vite proxy when `VITE_API_BASE` is unset.
 
 The production frontend defaults to the deployed Render API URL if this variable
