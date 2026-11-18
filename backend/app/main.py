@@ -25,6 +25,7 @@ app = FastAPI(
     version=settings.app_version,
     contact={"name": "HerHealth AI", "url": "https://example.com"},
     license_info={"name": "Private"},
+    lifespan=lifespan,
 )
 
 app.add_middleware(

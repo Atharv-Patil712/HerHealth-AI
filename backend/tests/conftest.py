@@ -12,7 +12,5 @@ from app.main import app  # noqa: E402
 
 @pytest.fixture(scope="session")
 def client():
-    from app.database import init_db
-
-    init_db()
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client

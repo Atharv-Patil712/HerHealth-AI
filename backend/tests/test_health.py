@@ -12,6 +12,13 @@ def test_health_endpoint(client):
     assert data.model_available is False
 
 
+def test_dashboard_endpoint_initializes_database(client):
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["welcome"]
+
+
 def test_any_origin_can_preflight_api_requests(client):
     response = client.options(
         "/api/dashboard",
