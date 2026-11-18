@@ -9,3 +9,6 @@ torch
 numpy
 pillow
 PyJWT
+joblib
+huggingface-hub
+scikit-learn
