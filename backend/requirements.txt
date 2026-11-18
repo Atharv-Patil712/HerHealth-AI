@@ -10,3 +10,4 @@ PyJWT
 joblib
 huggingface-hub
 scikit-learn==1.7.2
+https://pytorch.org
