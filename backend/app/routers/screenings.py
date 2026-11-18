@@ -121,6 +121,31 @@ def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = Tr
         round(max(0.0, min(orig_h, (y2 - top) / scale)), 1),
     ]
 
+    record_id = execute_lastrowid(
+        """
+        INSERT INTO anemia_screenings
+            (modality, model_name, anemia_probability, estimated_hemoglobin, risk_tier, roi_confidence)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        ("eyelid", MODEL_NAME, round(prob, 4), round(hb, 1), tier, round(out["seg_confidence"], 3)),
+    )
+
+    return {
+        "model": MODEL_NAME,
+        "record_id": record_id,
+        "roi_detected": out["roi_source"] == "conjunctiva",
+        "roi_label": "conjunctiva" if out["roi_source"] == "conjunctiva" else "center_fallback",
+        "roi_confidence": round(out["seg_confidence"], 3),
+        "roi_box_xyxy": box_orig,
+        "anemia_probability": round(prob, 4),
+        "estimated_hemoglobin_g_dl": round(hb, 1),
+        "is_anemic_flag": is_anemic,
+        "heads_agree": (prob >= ANEMIA_PROB_CUTOFF) == (hb < HB_ANEMIA_CUTOFF),
+        "risk_tier": tier,
+        "disclaimer": DISCLAIMER,
+    }
+
+
 @router.post("/analyze-nail")
 def analyze_nail_image(file: UploadFile = File(...), high_sensitivity: bool = False):
     raw = file.file.read(MAX_UPLOAD_BYTES + 1)
@@ -161,26 +186,3 @@ def get_screening_history(limit: int = 10):
         (limit,),
     )
     return {"items": [row_to_dict(r) for r in rows]}
-
-    record_id = execute_lastrowid(
-     """
-     INSERT INTO anemia_screenings
-         (modality, model_name, anemia_probability, estimated_hemoglobin, risk_tier, roi_confidence)
-     VALUES (?, ?, ?, ?, ?, ?)
-     """,
-     ("eyelid", MODEL_NAME, round(prob, 4), round(hb, 1), tier, round(out["seg_confidence"], 3)),
- )
-
-    return {
-        "model": MODEL_NAME,
-        "roi_detected": out["roi_source"] == "conjunctiva",
-        "roi_label": "conjunctiva" if out["roi_source"] == "conjunctiva" else "center_fallback",
-        "roi_confidence": round(out["seg_confidence"], 3),
-        "roi_box_xyxy": box_orig,
-        "anemia_probability": round(prob, 4),
-        "estimated_hemoglobin_g_dl": round(hb, 1),
-        "is_anemic_flag": is_anemic,
-        "heads_agree": (prob >= ANEMIA_PROB_CUTOFF) == (hb < HB_ANEMIA_CUTOFF),
-        "risk_tier": tier,
-        "disclaimer": DISCLAIMER,
-    }
