@@ -17,7 +17,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///herhealth.db"
 
     # CORS is intentionally limited to local development origins only.
-    cors_origins: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins: List[str] = [
+                                "http://localhost:5173", 
+                                "http://127.0.0.1:5173",
+                                "https://onrender.com"
+                                ]
 
     # Screening image constraints.
     max_upload_size_mb: int = 5
