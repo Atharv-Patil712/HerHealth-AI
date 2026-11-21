@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      watch: {
+        ignored: ["**/.venv/**"],
+      },
       proxy: {
         "/api": {
           target: apiBase,
@@ -26,7 +29,7 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "jsdom",
-      setupFiles: "./vitest.setup.ts",
+      setupFiles: "./src/vitest.setup.ts",
       globals: true,
     },
   };

@@ -69,6 +69,16 @@ def _load_image(raw: bytes) -> Image.Image:
         raise HTTPException(status_code=400, detail="Could not read the file as an image.")
 
 
+def _validate_image_quality(img: Image.Image, body_part: str) -> None:
+    pixels = np.asarray(img, dtype=np.uint8)
+    channel_std = pixels.std(axis=(0, 1))
+    if float(pixels.mean()) < 12 or float(channel_std.max()) < 4:
+        raise HTTPException(status_code=422, detail={
+            "code": "image_blank_or_too_dark",
+            "message": f"This image appears blank or too dark. Please upload a clear photo of your {body_part}.",
+        })
+
+
 def _risk(prob: float, hb: float):
     is_anemic = prob >= ANEMIA_PROB_CUTOFF or hb < HB_ANEMIA_CUTOFF
     if hb < HIGH_RISK_HB or prob >= HIGH_RISK_PROB:
@@ -83,7 +93,7 @@ def _risk(prob: float, hb: float):
 # NOTE: plain `def` (not `async def`): FastAPI runs it in a worker thread, so the
 # blocking forward pass doesn't freeze the event loop, and inference_mode really applies.
 @router.post("/analyze")
-def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = True):
+def analyze_image(file: UploadFile = File(...)):
     raw = file.file.read(MAX_UPLOAD_BYTES + 1)
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file.")
@@ -91,6 +101,7 @@ def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = Tr
         raise HTTPException(status_code=413, detail="Image is larger than 8 MB.")
 
     orig = _load_image(raw)
+    _validate_image_quality(orig, "inner lower eyelid")
     orig_w, orig_h = orig.size
     boxed, scale, left, top = _letterbox(orig)
 
@@ -98,13 +109,13 @@ def analyze_image(file: UploadFile = File(...), allow_center_fallback: bool = Tr
          .permute(2, 0, 1).unsqueeze(0).to(DEVICE))
 
     with _infer_lock, torch.inference_mode():
-        out = unified_model(x, allow_center_fallback=allow_center_fallback)
+        out = unified_model(x, allow_center_fallback=False)
 
     if out["roi_source"] == "none":
         raise HTTPException(status_code=422, detail={
             "code": "conjunctiva_not_found",
-            "message": ("We couldn't find the inner lower eyelid. Pull the lower eyelid down gently, "
-                        "use bright even light (no flash glare), keep the eye in focus, and retake the photo."),
+            "message": ("This doesn't look like a clear inner lower-eyelid photo. Please upload a close-up "
+                        "of your inner lower eyelid, use bright even light, and keep the eye in focus."),
             "roi_confidence": round(out["seg_confidence"], 3),
         })
 
@@ -153,6 +164,9 @@ def analyze_nail_image(file: UploadFile = File(...), high_sensitivity: bool = Fa
         raise HTTPException(status_code=400, detail="Empty file.")
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Image is larger than 8 MB.")
+
+    img = _load_image(raw)
+    _validate_image_quality(img, "fingernail")
 
     try:
         res = predict_nail_anemia(raw, high_sensitivity=high_sensitivity)

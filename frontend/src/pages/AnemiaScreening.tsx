@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
-const MAX_SIZE_MB = 10;
+const MAX_SIZE_MB = 8;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface UploadState {
@@ -30,6 +30,19 @@ interface ScreeningResult {
   disclaimer: string;
 }
 
+interface NailScreeningResult {
+  nail_model: string;
+  nail_anemia_probability: number;
+  nail_is_anemic: boolean;
+  risk_tier: "Low" | "Moderate" | "High";
+  record_id: number;
+}
+
+interface ScreeningResults {
+  eyelid: ScreeningResult;
+  nail: NailScreeningResult;
+}
+
 export default function AnemiaScreening() {
   const { t } = useTranslation();
   const [consented, setConsented] = useState(false);
@@ -37,7 +50,7 @@ export default function AnemiaScreening() {
   const [nail, setNail] = useState<UploadState>(emptyUpload());
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [result, setResult] = useState<ScreeningResult | null>(null);
+  const [result, setResult] = useState<ScreeningResults | null>(null);
 
   const eyelidRef = useRef<HTMLInputElement>(null);
   const nailRef = useRef<HTMLInputElement>(null);
@@ -68,22 +81,30 @@ export default function AnemiaScreening() {
     setApiError(null);
 
     if (!eyelid.file) {
-      if (nail.file) {
-        setApiError("An inner lower eyelid photo is required for screening. The model analyzes the conjunctiva only.");
-      }
+      setApiError(t("screening.missing_eyelid"));
+      return;
+    }
+    if (!nail.file) {
+      setApiError(t("screening.missing_nail"));
       return;
     }
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", eyelid.file);
+      const eyelidForm = new FormData();
+      eyelidForm.append("file", eyelid.file);
+      const nailForm = new FormData();
+      nailForm.append("file", nail.file);
 
-      const body = await api.postForm<ScreeningResult>(
+      const eyelidResult = await api.postForm<ScreeningResult>(
         "/api/screenings/analyze",
-        formData
+        eyelidForm
       );
-      setResult(body);
+      const nailResult = await api.postForm<NailScreeningResult>(
+        "/api/screenings/analyze-nail",
+        nailForm
+      );
+      setResult({ eyelid: eyelidResult, nail: nailResult });
     } catch (err) {
       setApiError(
         err instanceof Error
@@ -96,12 +117,19 @@ export default function AnemiaScreening() {
   }
 
   if (result) {
-    const isUncertain = !result.roi_detected || !result.heads_agree;
+    const eyelidResult = result.eyelid;
+    const nailResult = result.nail;
+    const isUncertain = !eyelidResult.roi_detected || !eyelidResult.heads_agree;
     const tierColors = {
       Low: "bg-emerald-50 text-emerald-800 border-emerald-200",
       Moderate: "bg-amber-50 text-amber-800 border-amber-200",
       High: "bg-rose-50 text-rose-800 border-rose-200",
-    }[result.risk_tier] || "bg-pink/10 text-deep border-pink/30";
+    }[eyelidResult.risk_tier] || "bg-pink/10 text-deep border-pink/30";
+    const nailTierColors = {
+      Low: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      Moderate: "bg-amber-50 text-amber-800 border-amber-200",
+      High: "bg-rose-50 text-rose-800 border-rose-200",
+    }[nailResult.risk_tier] || "bg-pink/10 text-deep border-pink/30";
 
     return (
       <div className="page-container py-12 max-w-lg">
@@ -109,39 +137,54 @@ export default function AnemiaScreening() {
           <div className="text-center mb-6">
             <CheckCircle size={40} className="mx-auto text-sage mb-3" />
             <h2 className="font-serif text-section text-ink">Screening Assessment</h2>
-            <p className="text-xs text-ink/60 mt-1">Model: {result.model}</p>
+            <p className="text-xs text-ink/60 mt-1">Eyelid model: {eyelidResult.model}</p>
           </div>
 
           <div className="space-y-4 mb-6">
             <div className="flex items-center justify-between p-4 rounded-lg bg-blush border border-border">
-              <span className="text-sm font-medium text-ink">Risk Tier</span>
+              <span className="text-sm font-medium text-ink">Inner eyelid risk tier</span>
               <span className={`text-xs px-3 py-1 font-semibold rounded-full border ${tierColors}`}>
-                {result.risk_tier} Risk
+                {eyelidResult.risk_tier} Risk
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-lg bg-blush border border-border text-center">
-                <span className="text-xs text-ink/60 block mb-1">Estimated Hemoglobin</span>
+                <span className="text-xs text-ink/60 block mb-1">Inner eyelid estimated hemoglobin</span>
                 <span className="text-xl font-bold text-ink">
-                  {result.estimated_hemoglobin_g_dl.toFixed(1)}{" "}
+                  {eyelidResult.estimated_hemoglobin_g_dl.toFixed(1)}{" "}
                   <span className="text-xs font-normal text-ink/60">g/dL</span>
                 </span>
               </div>
 
               <div className="p-4 rounded-lg bg-blush border border-border text-center">
-                <span className="text-xs text-ink/60 block mb-1">Anemia Probability</span>
+                <span className="text-xs text-ink/60 block mb-1">Inner eyelid anemia probability</span>
                 <span className="text-xl font-bold text-ink">
-                  {(result.anemia_probability * 100).toFixed(1)}%
+                  {(eyelidResult.anemia_probability * 100).toFixed(1)}%
                 </span>
               </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-blush border border-border">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-sm font-medium text-ink">Fingernail model estimate</span>
+                <span className={`text-xs px-3 py-1 font-semibold rounded-full border ${nailTierColors}`}>
+                  {nailResult.risk_tier} Risk
+                </span>
+              </div>
+              <p className="text-sm text-ink">
+                Anemia probability: {(nailResult.nail_anemia_probability * 100).toFixed(1)}%
+              </p>
+              <p className="text-xs text-ink/60 mt-2">
+                {t("screening.nail_validation_notice")}
+              </p>
             </div>
 
             {isUncertain && (
               <div className="p-3.5 rounded-lg bg-cream border border-deep/20 flex items-start gap-2.5 text-xs text-deep">
                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                 <span>
-                  {!result.roi_detected
+                  {!eyelidResult.roi_detected
                     ? "The conjunctiva was not clearly segmented. We recommend retaking the photo in bright light or getting a clinical CBC blood test."
                     : "The probability model and hemoglobin estimator produced diverging assessments. We recommend retaking the photo or consulting a clinician for a CBC blood test."}
                 </span>
@@ -150,7 +193,7 @@ export default function AnemiaScreening() {
 
             <div className="p-3.5 rounded-lg bg-blush/60 border border-border text-xs text-ink/70 leading-relaxed">
               <p className="font-medium text-ink mb-1">Important Notice</p>
-              <p>{result.disclaimer}</p>
+              <p>{eyelidResult.disclaimer}</p>
             </div>
           </div>
 
@@ -259,13 +302,15 @@ export default function AnemiaScreening() {
           />
         </div>
 
+        <p className="text-xs text-ink/60 mb-4">{t("screening.nail_validation_notice")}</p>
+
         <button
           type="submit"
-          disabled={loading || !consented || (!eyelid.file && !nail.file)}
+          disabled={loading || !consented}
           className="w-full py-3 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && <Loader2 size={16} className="animate-spin" />}
-          {loading ? "Analyzing image..." : t("screening.submit")}
+          {loading ? t("screening.analyzing") : t("screening.submit")}
         </button>
       </form>
     </div>

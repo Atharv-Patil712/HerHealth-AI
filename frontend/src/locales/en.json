@@ -42,7 +42,7 @@
         "title": "Image-assisted anemia screening",
         "description": "HerHealth AI's first screening feature works with two kinds of photos: a close-up of your inner lower eyelid (conjunctiva), and a close-up of a fingernail or nail bed. Changes in pallor can be associated with anemia — but photos alone cannot measure hemoglobin or confirm anything.",
         "honest_title": "Honest about what this is — and isn't",
-        "honest_text": "Real AI analysis is not available yet. No model has been validated or integrated, so this will never return a fabricated anemia probability. A blood test is the only way to confirm anemia."
+        "honest_text": "Experimental image models provide estimates, but they have not been clinically validated and cannot diagnose anemia. A blood test is the only way to confirm anemia."
       }
     },
     "privacy": {
@@ -234,7 +234,7 @@
       "anemia": "Anemia"
     },
     "no_screening_sessions": "No screening sessions yet",
-    "screening_welcome": "When you complete an anemia screening, it will appear here with its status. Image analysis is not available yet.",
+    "screening_welcome": "Your experimental image-screening estimates will appear here. They are not a diagnosis.",
     "recent_activity": "Recent activity",
     "nothing_recent": "Nothing recent yet",
     "cycle_entries": "Your cycle entries, screening sessions, and questionnaire summaries will appear here.",
@@ -309,18 +309,22 @@
   "screening": {
     "title": "Anemia Screening",
     "subtitle": "An image-assisted research prototype. This is not a diagnostic tool.",
-    "prototype_note": "This feature is a research prototype. No validated AI model is integrated. It will never return a fabricated diagnosis.",
+    "prototype_note": "This research prototype uses experimental image models that are not clinically validated and cannot diagnose anemia.",
     "what_it_is": "What this feature explores",
     "what_it_is_desc": "Changes in eyelid pallor and nail bed color can sometimes be associated with anemia. This prototype explores whether image capture could support awareness — but a blood test (complete blood count) is the only way to confirm anemia.",
     "consent_heading": "Your consent",
-    "consent_text": "Images you upload are validated locally (file type and size). They are processed only to display a preview and to record that an attempt was made. No image content is analyzed, stored permanently, or sent to a third party.",
+    "consent_text": "By continuing, you agree to send both photos to the HerHealth backend for experimental model processing. Images are not sent to Hugging Face or other third-party inference services and are not stored permanently. The fingernail model does not reliably verify that a photo contains a nail.",
     "upload_eyelid": "Upload inner eyelid photo",
     "upload_nail": "Upload fingernail photo",
     "guidance_eyelid": "Look straight ahead, gently pull the lower lid down, use natural light, no flash.",
     "guidance_nail": "Natural nails only, daylight, no filters, hold camera steady.",
-    "submit": "Submit for review",
+    "submit": "Analyze both photos",
+    "analyzing": "Analyzing both photos...",
+    "missing_eyelid": "Please upload a clear photo of your inner lower eyelid.",
+    "missing_nail": "Please upload a clear photo of a fingernail.",
     "limitation": "Important limitation",
-    "limitation_text": "This prototype cannot and does not analyze images for anemia. No result, probability, or diagnosis will be returned. Please consult a clinician for any health concerns."
+    "limitation_text": "The experimental estimates may be inaccurate and are not a diagnosis. The fingernail model does not reliably verify the image type. A clinical CBC blood test is required to confirm anemia.",
+    "nail_validation_notice": "Unrelated images may produce misleading estimates; treat this result as experimental."
   },
   "image_testing": {
     "title": "Image Testing",

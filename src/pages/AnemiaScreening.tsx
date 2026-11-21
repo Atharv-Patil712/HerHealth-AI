@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle , Loader2} from "lucide-react";
 import { api } from "../lib/api";
 
-const MAX_SIZE_MB = 10;
+const MAX_SIZE_MB = 8;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface UploadState {
@@ -12,8 +12,88 @@ interface UploadState {
   error: string | null;
 }
 
+interface EyelidResult {
+  risk_tier: "Low" | "Moderate" | "High" | "Unspecified";
+  anemia_probability: number;
+}
+
+interface NailResult {
+  nail_is_anemic: boolean;
+  nail_anemia_probability: number;
+}
+
+interface ScreeningResult {
+  eye: EyelidResult;
+  nail: NailResult;
+}
+
 function emptyUpload(): UploadState {
   return { file: null, preview: null, error: null };
+}
+
+function parseProbability(value: unknown): number | null {
+  const probability =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : Number.NaN;
+
+  return Number.isFinite(probability) && probability >= 0 && probability <= 1
+    ? probability
+    : null;
+}
+
+function describeResponseShape(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  if (typeof value !== "object") return typeof value;
+
+  const keys = Object.keys(value);
+  return keys.length > 0 ? `fields: ${keys.join(", ")}` : "empty object";
+}
+
+function parseEyelidResult(value: unknown): EyelidResult | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  if (!("anemia_probability" in value)) return null;
+
+  const probability = parseProbability(value.anemia_probability);
+  if (probability === null) return null;
+
+  const rawTier = "risk_tier" in value ? value.risk_tier : null;
+  const normalizedTier =
+    typeof rawTier === "string" ? rawTier.trim().toLowerCase() : "";
+  const riskTier =
+    normalizedTier === "low"
+      ? "Low"
+      : normalizedTier === "moderate"
+        ? "Moderate"
+        : normalizedTier === "high"
+          ? "High"
+          : "Unspecified";
+
+  return { risk_tier: riskTier, anemia_probability: probability };
+}
+
+function parseNailResult(value: unknown): NailResult | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  if (!("nail_is_anemic" in value) || !("nail_anemia_probability" in value)) {
+    return null;
+  }
+
+  const probability = parseProbability(value.nail_anemia_probability);
+  if (typeof value.nail_is_anemic !== "boolean" || probability === null) {
+    return null;
+  }
+
+  return {
+    nail_is_anemic: value.nail_is_anemic,
+    nail_anemia_probability: probability,
+  };
 }
 
 export default function AnemiaScreening() {
@@ -26,7 +106,7 @@ export default function AnemiaScreening() {
   const [nail, setNail] = useState<UploadState>(emptyUpload());
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ScreeningResult | null>(null);
 
   const eyelidRef = useRef<HTMLInputElement>(null);
   const nailRef = useRef<HTMLInputElement>(null);
@@ -103,25 +183,54 @@ export default function AnemiaScreening() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!eyelid.file && !nail.file) return;
+    if (!eyelid.file) {
+      setApiError(t("screening.missing_eyelid"));
+      return;
+    }
+    if (!nail.file) {
+      setApiError(t("screening.missing_nail"));
+      return;
+    }
 
     setLoading(true);
     setApiError(null);
 
     try {
-      let eyeData = null;
-      let nailData = null;
+      const eyeForm = new FormData();
+      eyeForm.append("file", eyelid.file);
+      const nailForm = new FormData();
+      nailForm.append("file", nail.file);
 
-      if (eyelid.file) {
-        const eyeForm = new FormData();
-        eyeForm.append("file", eyelid.file);
-        eyeData = await api.postForm("/api/screenings/analyze", eyeForm);
+      const eyeResponse = await api.postForm<unknown>(
+        "/api/screenings/analyze",
+        eyeForm
+      );
+      const eyeData = parseEyelidResult(eyeResponse);
+      if (eyeResponse === null) {
+        throw new Error(
+          "No inner-eyelid result was returned. Please retake a clear, well-lit close-up photo of your inner lower eyelid."
+        );
+      }
+      if (!eyeData) {
+        throw new Error(
+          `Invalid inner-eyelid response (${describeResponseShape(eyeResponse)}). Please retry.`
+        );
       }
 
-      if (nail.file) {
-        const nailForm = new FormData();
-        nailForm.append("file", nail.file);
-        nailData = await api.postForm("/api/screenings/analyze-nail", nailForm);
+      const nailResponse = await api.postForm<unknown>(
+        "/api/screenings/analyze-nail",
+        nailForm
+      );
+      const nailData = parseNailResult(nailResponse);
+      if (nailResponse === null) {
+        throw new Error(
+          "No fingernail result was returned. Please retake a clear, well-lit photo of your fingernail."
+        );
+      }
+      if (!nailData) {
+        throw new Error(
+          `Invalid fingernail response (${describeResponseShape(nailResponse)}). Please retry.`
+        );
       }
 
       setResult({ eye: eyeData, nail: nailData });
@@ -141,36 +250,27 @@ export default function AnemiaScreening() {
 
          
 
-          {result.eye && (
-            <div className="mb-6 text-left">
-              <p className="text-xs font-semibold text-deep uppercase mb-2">
-                Inner Eyelid Result ({result.eye.risk_tier} Risk)
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-blush p-3 rounded-xl border border-border">
-                  <p className="text-xs text-ink/60">Est. Hemoglobin</p>
-                  <p className="text-lg font-bold text-deep">{result.eye.estimated_hemoglobin_g_dl} g/dL</p>
-                </div>
-                <div className="bg-blush p-3 rounded-xl border border-border">
-                  <p className="text-xs text-ink/60">Anemia Probability</p>
-                  <p className="text-lg font-bold text-deep">{(result.eye.anemia_probability * 100).toFixed(1)}%</p>
-                </div>
-              </div>
+          <div className="mb-6 text-left">
+            <p className="text-xs font-semibold text-deep uppercase mb-2">
+              Inner Eyelid Result ({result.eye.risk_tier} Risk)
+            </p>
+            <div className="bg-blush p-3 rounded-xl border border-border">
+              <p className="text-xs text-ink/60">Inner Eyelid Anemia Probability</p>
+              <p className="text-lg font-bold text-deep">{(result.eye.anemia_probability * 100).toFixed(1)}%</p>
             </div>
-          )}
+          </div>
 
           
-          {result.nail && (
-            <div className="mb-6 text-left">
-              <p className="text-xs font-semibold text-deep uppercase mb-2">
-                Fingernail Bed Result ({result.nail.nail_is_anemic ? "Anemia Risk Detected" : "Normal"})
-              </p>
-              <div className="bg-blush p-3 rounded-xl border border-border">
-                <p className="text-xs text-ink/60">Nail Anemia Probability</p>
-                <p className="text-lg font-bold text-deep">{(result.nail.nail_anemia_probability * 100).toFixed(1)}%</p>
-              </div>
+          <div className="mb-6 text-left">
+            <p className="text-xs font-semibold text-deep uppercase mb-2">
+              Fingernail Bed Result ({result.nail.nail_is_anemic ? "Anemia Risk Detected" : "Normal"})
+            </p>
+            <div className="bg-blush p-3 rounded-xl border border-border">
+              <p className="text-xs text-ink/60">Nail Anemia Probability</p>
+              <p className="text-lg font-bold text-deep">{(result.nail.nail_anemia_probability * 100).toFixed(1)}%</p>
+              <p className="mt-2 text-xs text-ink/60">{t("screening.nail_validation_notice")}</p>
             </div>
-          )}
+          </div>
 
           <p className="text-xs text-ink/70 leading-relaxed mb-6">
             Educational wellness prototype only. A clinical CBC blood test is required for medical diagnosis.
@@ -224,7 +324,7 @@ export default function AnemiaScreening() {
             className="mt-0.5 w-4 h-4 accent-deep"
           />
           <span className="text-sm text-ink">
-            I understand this is a prototype with no AI analysis, and that my images will not be sent to any external service.
+            I understand these experimental estimates are not a diagnosis and that a clinical CBC blood test is required to confirm anemia.
           </span>
         </label>
       </div>
@@ -232,13 +332,13 @@ export default function AnemiaScreening() {
       {/* Upload form */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <StepBadge number={1} label={t("screening.consent_step", "Step 1: Consent")} active={consented} done={consented} />
-        <StepBadge number={2} label={t("screening.upload_step", "Step 2: Photos")} active={consented && (!eyelid.file && !nail.file)} done={!!(eyelid.file || nail.file)} />
-        <StepBadge number={3} label={t("screening.submit_step", "Step 3: Send")} active={consented && (!!eyelid.file || !!nail.file)} done={!!result} />
+        <StepBadge number={2} label={t("screening.upload_step", "Step 2: Photos")} active={consented && (!eyelid.file || !nail.file)} done={!!eyelid.file && !!nail.file} />
+        <StepBadge number={3} label={t("screening.submit_step", "Step 3: Send")} active={consented && !!eyelid.file && !!nail.file} done={!!result} />
       </div>
       {apiError && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-x1 p-4 mb-6 text-sm">
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-800 rounded-x1 p-4 mb-6 text-sm">
           {apiError}
-          </div>
+        </div>
       )}
       <form onSubmit={handleSubmit} className={!consented ? "opacity-50 pointer-events-none" : ""}>
         <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -262,10 +362,10 @@ export default function AnemiaScreening() {
 
         <button
        type="submit"
-       disabled={!consented || (!eyelid.file && !nail.file) || loading}
+       disabled={!consented || loading}
        className="w-full py-3 bg-deep text-white text-sm font-medium rounded-lg hover:bg-pink transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
      >
-       {loading ? <><Loader2 size={16} className="animate-spin" /> Analyzing...</> : t("screening.submit")}
+       {loading ? <><Loader2 size={16} className="animate-spin" /> {t("screening.analyzing")}</> : t("screening.submit")}
      </button>
       </form>
     </div>

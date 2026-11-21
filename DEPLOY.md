@@ -44,6 +44,17 @@ Local development uses the Vite proxy when `VITE_API_BASE` is unset.
 The production frontend defaults to the deployed Render API URL if this variable
 is unset.
 
+## Screening image validation
+
+The screening page requires both an inner-eyelid photo and a fingernail photo.
+Uploads are sent to the HerHealth backend for processing; this flow does not send
+uploaded images to Hugging Face Inference and does not require an `HF_TOKEN`.
+The eyelid image is checked by the local conjunctiva detector, with center-crop
+fallback disabled. Both routes reject blank or very dark images. The fingernail
+model does not reliably verify that an image actually contains a nail, so its
+estimate must be treated as experimental. A reliable nail-image check requires
+a task-specific model and validation data.
+
 ## What's Included
 
 - `src/` — All React components, pages, and logic

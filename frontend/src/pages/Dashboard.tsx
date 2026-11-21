@@ -271,7 +271,7 @@ export default function Dashboard() {
           ) : (
             <EmptyState
               title="No screening sessions yet"
-              body="When you complete an anemia screening, it will appear here with its status. Image analysis is not available yet."
+              body="Experimental image-screening estimates will appear here after a screening. They are not a diagnosis."
             />
           )}
         </div>
