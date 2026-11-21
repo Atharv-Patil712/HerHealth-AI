@@ -1,48 +1,34 @@
-# Deploy HerHealth Frontend to Vercel
+# Deploy HerHealth on Render
 
-This folder contains only the frontend code, ready to upload to Vercel.
+The `render.yaml` Blueprint deploys both the FastAPI backend and the Vite
+frontend. The frontend is configured to call the API service created by the
+Blueprint.
 
-## Option 1: Connect GitHub (Recommended)
+## Deploy from GitHub
 
-1. Push this `vercel-deploy` folder to a GitHub repository
-2. Go to [vercel.com](https://vercel.com)
-3. Click **Add New** → **Project**
-4. Import your GitHub repository
-5. Framework preset: **Vite**
-6. Build command: `npm run build`
-7. Output directory: `dist`
-8. Click **Deploy**
+1. Push this repository, including `render.yaml`, to GitHub.
+2. In [Render](https://render.com), select **New → Blueprint** and connect the
+   repository.
+3. Review and deploy both services: `herhealth-ai-api` and
+   `herhealth-ai-frontend`.
 
-## Option 2: Vercel CLI
+The Blueprint sets the backend build and start commands, health check, and CORS
+origin. For the frontend it sets the build command (`npm ci && npm run build`),
+publish directory (`dist`), API URL, and SPA fallback route. The expected
+hostnames are `https://herhealth-ai-api.onrender.com` and
+`https://herhealth-ai-frontend.onrender.com`.
 
-```powershell
-cd vercel-deploy
-npm i -g vercel
-vercel login
-vercel --prod
-```
+If Render assigns different hostnames, update the `VITE_API_BASE` value in the
+frontend service and the `CORS_ORIGINS` value in the backend service to match,
+then redeploy.
 
-## Important: Set Environment Variable
+Render's local filesystem is ephemeral unless a persistent disk is attached.
+The backend stores screening and questionnaire records in SQLite, so those
+records and the generated Q&A index can be lost when the service restarts or
+redeploys without persistent storage. The knowledge-base build downloads and
+indexes its dataset during deployment; app startup creates the SQLite schema.
 
-In the Vercel dashboard, go to **Settings → Environment Variables** and add:
-
-| Name | Value | Environments |
-|------|-------|--------------|
-| `VITE_API_BASE` | `https://herhealth-ai-w4yw.onrender.com` | Production, Preview |
-
-The backend allows browser requests only from
-`https://herhealth-ai-frontend.onrender.com` and does not allow credentialed
-cross-origin requests. If `CORS_ORIGINS` is set in Render, set it to the JSON
-array `["https://herhealth-ai-frontend.onrender.com"]` or remove the override.
-Set the Render backend build command to
-`pip install -r requirements.txt && python build_health_kb.py` (the backend
-service root directory is `backend`). This builds the women's health Q&A index
-during deployment, outside the memory-limited runtime. App startup creates the
-SQLite schema.
 Local development uses the Vite proxy when `VITE_API_BASE` is unset.
-
-The production frontend defaults to the deployed Render API URL if this variable
-is unset.
 
 ## Screening image validation
 
