@@ -1,26 +1,22 @@
-# Deploy HerHealth on Render
+# Deploy the HerHealth API on Render
 
-The `render.yaml` Blueprint deploys both the FastAPI backend and the Vite
-frontend. The frontend is configured to call the API service created by the
-Blueprint.
+The `render.yaml` Blueprint deploys the FastAPI backend on Render's free
+instance plan. The existing frontend is managed separately.
 
 ## Deploy from GitHub
 
 1. Push this repository, including `render.yaml`, to GitHub.
 2. In [Render](https://render.com), select **New → Blueprint** and connect the
    repository.
-3. Review and deploy both services: `herhealth-ai-api` and
-   `herhealth-ai-frontend`.
+3. Review and deploy the `herhealth-ai-api` service.
 
 The Blueprint sets the backend build and start commands, health check, and CORS
-origin. For the frontend it sets the build command (`npm ci && npm run build`),
-publish directory (`dist`), API URL, and SPA fallback route. The expected
-hostnames are `https://herhealth-ai-api.onrender.com` and
-`https://herhealth-ai-frontend.onrender.com`.
+origin. The expected API hostname is `https://herhealth-ai-api.onrender.com`.
 
-If Render assigns different hostnames, update the `VITE_API_BASE` value in the
-frontend service and the `CORS_ORIGINS` value in the backend service to match,
-then redeploy.
+Set the existing frontend's `VITE_API_BASE` environment variable to the API
+hostname and redeploy it. If Render assigns a different hostname, update
+`VITE_API_BASE` in the frontend and `CORS_ORIGINS` in the backend to match.
+The free API instance may sleep when idle and has limited memory and CPU.
 
 Render's local filesystem is ephemeral unless a persistent disk is attached.
 The backend stores screening and questionnaire records in SQLite, so those
