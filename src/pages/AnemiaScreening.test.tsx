@@ -106,6 +106,25 @@ describe("AnemiaScreening", () => {
     expect(screen.queryByText("Allowed types: JPEG, PNG, WebP, HEIC")).not.toBeInTheDocument();
   });
 
+  it("accepts a 10 MB photo from a mobile device", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<AnemiaScreening />);
+    await user.click(screen.getByRole("checkbox"));
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) {
+      throw new Error("The eyelid image input was not rendered.");
+    }
+    const photo = new File(
+      [new Uint8Array(10 * 1024 * 1024)],
+      "eyelid.jpg",
+      { type: "image/jpeg" }
+    );
+    await user.upload(input, photo);
+
+    expect(await screen.findByAltText("Upload preview")).toBeInTheDocument();
+  });
+
   it("asks for a retake when the eyelid API returns null", async () => {
     const user = userEvent.setup();
     const { container } = render(<AnemiaScreening />);

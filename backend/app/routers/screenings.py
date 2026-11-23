@@ -27,7 +27,8 @@ HB_ANEMIA_CUTOFF = 11.8        # g/dL  (WHO: 12.0 non-pregnant women, 11.0 pregn
 HIGH_RISK_PROB = 0.80
 HIGH_RISK_HB = 9.5             # g/dL
 HB_PLAUSIBLE_RANGE = (3.0, 20.0)
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_UPLOAD_SIZE_MB = 12
+MAX_UPLOAD_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 MAX_PIXELS = 40_000_000
 DISCLAIMER = ("Educational wellness prototype only. A clinical CBC blood test is "
               "required for medical diagnosis.")
@@ -101,7 +102,10 @@ def analyze_image(file: UploadFile = File(...)):
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file.")
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Image is larger than 8 MB.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"Image is larger than {MAX_UPLOAD_SIZE_MB} MB.",
+        )
 
     orig = _load_image(raw)
     _validate_image_quality(orig, "inner lower eyelid")
@@ -166,7 +170,10 @@ def analyze_nail_image(file: UploadFile = File(...), high_sensitivity: bool = Fa
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file.")
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Image is larger than 8 MB.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"Image is larger than {MAX_UPLOAD_SIZE_MB} MB.",
+        )
 
     img = _load_image(raw)
     _validate_image_quality(img, "fingernail")

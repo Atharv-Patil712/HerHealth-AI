@@ -71,6 +71,36 @@ def test_analyze_accepts_heic_image(client, monkeypatch):
     assert response.status_code == 200, response.text
 
 
+def test_analyze_accepts_10mb_mobile_upload(client, monkeypatch):
+    monkeypatch.setattr(screenings, "_load_image", lambda _raw: create_test_image())
+    monkeypatch.setattr(screenings, "_validate_image_quality", lambda *_args: None)
+    monkeypatch.setattr(
+        screenings,
+        "unified_model",
+        lambda _image, allow_center_fallback: {
+            "roi_source": "conjunctiva",
+            "seg_confidence": 0.95,
+            "anemia_prob": 0.1,
+            "hb_g_dl": 13.2,
+            "roi_box": [100, 100, 540, 540],
+        },
+    )
+    monkeypatch.setattr(screenings, "execute_lastrowid", lambda *_args: 1)
+
+    response = client.post(
+        "/api/screenings/analyze",
+        files={
+            "file": (
+                "eyelid.jpg",
+                io.BytesIO(b"x" * (10 * 1024 * 1024)),
+                "image/jpeg",
+            )
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def test_analyze_rejects_image_without_conjunctiva(client, monkeypatch):
     monkeypatch.setattr(
         screenings,

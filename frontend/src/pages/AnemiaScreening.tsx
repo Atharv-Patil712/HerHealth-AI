@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
-const MAX_SIZE_MB = 8;
+const MAX_SIZE_MB = 12;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface UploadState {
