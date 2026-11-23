@@ -11,11 +11,10 @@ instance plan. The existing frontend is managed separately.
 3. Review and deploy the `herhealth-ai-api` service.
 
 The Blueprint sets the backend build and start commands, health check, and CORS
-origin. The expected API hostname is `https://herhealth-ai-api.onrender.com`.
-
-Set the existing frontend's `VITE_API_BASE` environment variable to the API
-hostname and redeploy it. If Render assigns a different hostname, update
-`VITE_API_BASE` in the frontend and `CORS_ORIGINS` in the backend to match.
+origin. The expected API hostname is `https://herhealth-ai-api.onrender.com`,
+which is also the frontend's production default. If Render assigns a different
+hostname, update `VITE_API_BASE` in the frontend and `CORS_ORIGINS` in the
+backend to match, then redeploy both services.
 The free API instance may sleep when idle and has limited memory and CPU.
 
 Render's local filesystem is ephemeral unless a persistent disk is attached.

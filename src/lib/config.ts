@@ -9,5 +9,5 @@ export const SUPPORTING_MESSAGE =
 // Production requests go to the deployed API unless explicitly overridden.
 export const API_BASE = (
   import.meta.env.VITE_API_BASE ??
-  (import.meta.env.DEV ? "" : "https://herhealth-ai-w4yw.onrender.com")
+  (import.meta.env.DEV ? "" : "https://herhealth-ai-api.onrender.com")
 ).replace(/\/$/, "");
