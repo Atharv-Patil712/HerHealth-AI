@@ -4,7 +4,14 @@ import { Upload, X, AlertTriangle, Info, CheckCircle , Loader2} from "lucide-rea
 import { api } from "../lib/api";
 
 const MAX_SIZE_MB = 8;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
+const ACCEPTED_IMAGE_FILES = [...ALLOWED_TYPES, ".heic", ".heif"];
 
 interface UploadState {
   file: File | null;
@@ -166,8 +173,9 @@ export default function AnemiaScreening() {
 ) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
+  const isHeifByExtension = /\.(heic|heif)$/i.test(file.name);
+  if (!ALLOWED_TYPES.includes(file.type) && !isHeifByExtension) {
+    setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP, HEIC" }) });
     return;
   }
   if (file.size > MAX_SIZE_MB * 1024 * 1024) {
@@ -425,7 +433,7 @@ function UploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept={ALLOWED_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_FILES.join(",")}
         onChange={onChange}
         className="hidden"
       />

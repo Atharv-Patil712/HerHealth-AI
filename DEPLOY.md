@@ -33,7 +33,8 @@ Local development uses the Vite proxy when `VITE_API_BASE` is unset.
 ## Screening image validation
 
 The screening page requires both an inner-eyelid photo and a fingernail photo.
-Uploads are sent to the HerHealth backend for processing; this flow does not send
+JPEG, PNG, WebP, and HEIC/HEIF photos are accepted (HEIC/HEIF decoding uses
+`pillow-heif`). Uploads are sent to the HerHealth backend for processing; this flow does not send
 uploaded images to Hugging Face Inference and does not require an `HF_TOKEN`.
 The eyelid image is checked by the local conjunctiva detector, with center-crop
 fallback disabled. Both routes reject blank or very dark images. The fingernail

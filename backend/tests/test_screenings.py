@@ -3,6 +3,7 @@
 import io
 
 from PIL import Image, ImageDraw
+import pillow_heif
 
 from app.routers import screenings
 
@@ -44,6 +45,30 @@ def test_analyze_returns_screening_result(client, monkeypatch):
     assert result["estimated_hemoglobin_g_dl"] == 13.2
     assert result["risk_tier"] == "Low"
     assert result["record_id"] is not None
+
+
+def test_analyze_accepts_heic_image(client, monkeypatch):
+    monkeypatch.setattr(
+        screenings,
+        "unified_model",
+        lambda _image, allow_center_fallback: {
+            "roi_source": "conjunctiva",
+            "seg_confidence": 0.95,
+            "anemia_prob": 0.1,
+            "hb_g_dl": 13.2,
+            "roi_box": [100, 100, 540, 540],
+        },
+    )
+    image = io.BytesIO()
+    pillow_heif.from_pillow(create_test_image()).save(image)
+    image.seek(0)
+
+    response = client.post(
+        "/api/screenings/analyze",
+        files={"file": ("eyelid.heic", image, "image/heic")},
+    )
+
+    assert response.status_code == 200, response.text
 
 
 def test_analyze_rejects_image_without_conjunctiva(client, monkeypatch):

@@ -6,6 +6,7 @@ python-multipart
 httpx
 numpy
 pillow
+pillow-heif
 PyJWT
 joblib
 huggingface-hub

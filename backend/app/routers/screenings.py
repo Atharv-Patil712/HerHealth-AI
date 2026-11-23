@@ -3,6 +3,7 @@ import os
 import threading
 
 import numpy as np
+import pillow_heif
 import torch
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -10,6 +11,8 @@ from app.database import execute_lastrowid, query, row_to_dict
 
 from build_unified_model import HerHealthUnifiedModel
 from app.ml.nail_predictor import predict_nail_anemia
+
+pillow_heif.register_heif_opener()
 
 router = APIRouter(prefix="/api/screenings", tags=["Anemia Screening"])
 
