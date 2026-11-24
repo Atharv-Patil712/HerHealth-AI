@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
-const MAX_SIZE_MB = 12;
+const MAX_SIZE_MB = 5;
 // Android camera/gallery sometimes reports an empty MIME type for JPEG photos,
 // so we also check the file extension as a fallback.
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];

@@ -106,7 +106,7 @@ describe("AnemiaScreening", () => {
     expect(screen.queryByText("Allowed types: JPEG, PNG, WebP, HEIC")).not.toBeInTheDocument();
   });
 
-  it("accepts a 10 MB photo from a mobile device", async () => {
+  it("accepts a 5 MB photo from a mobile device", async () => {
     const user = userEvent.setup();
     const { container } = render(<AnemiaScreening />);
     await user.click(screen.getByRole("checkbox"));
@@ -116,7 +116,7 @@ describe("AnemiaScreening", () => {
       throw new Error("The eyelid image input was not rendered.");
     }
     const photo = new File(
-      [new Uint8Array(10 * 1024 * 1024)],
+      [new Uint8Array(5 * 1024 * 1024)],
       "eyelid.jpg",
       { type: "image/jpeg" }
     );

@@ -4,6 +4,7 @@ import io
 
 from PIL import Image, ImageDraw
 import pillow_heif
+import pytest
 
 from app.routers import screenings
 
@@ -71,7 +72,7 @@ def test_analyze_accepts_heic_image(client, monkeypatch):
     assert response.status_code == 200, response.text
 
 
-def test_analyze_accepts_10mb_mobile_upload(client, monkeypatch):
+def test_analyze_accepts_5mb_mobile_upload(client, monkeypatch):
     monkeypatch.setattr(screenings, "_load_image", lambda _raw: create_test_image())
     monkeypatch.setattr(screenings, "_validate_image_quality", lambda *_args: None)
     monkeypatch.setattr(
@@ -92,13 +93,49 @@ def test_analyze_accepts_10mb_mobile_upload(client, monkeypatch):
         files={
             "file": (
                 "eyelid.jpg",
-                io.BytesIO(b"x" * (10 * 1024 * 1024)),
+                io.BytesIO(b"x" * (5 * 1024 * 1024)),
                 "image/jpeg",
             )
         },
     )
 
     assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["/api/screenings/analyze", "/api/screenings/analyze-nail"],
+)
+def test_screening_rejects_uploads_over_5mb(client, endpoint):
+    response = client.post(
+        endpoint,
+        files={
+            "file": (
+                "oversized.jpg",
+                io.BytesIO(b"x" * (5 * 1024 * 1024 + 1)),
+                "image/jpeg",
+            )
+        },
+    )
+
+    assert response.status_code == 413
+
+
+def test_analyze_rejects_resolution_over_12mp(client, monkeypatch):
+    class OversizedImage:
+        width = 4001
+        height = 3000
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(screenings.Image, "open", lambda _source: OversizedImage())
+    response = client.post(
+        "/api/screenings/analyze",
+        files={"file": ("oversized.jpg", io.BytesIO(b"image"), "image/jpeg")},
+    )
+
+    assert response.status_code == 413
 
 
 def test_analyze_rejects_image_without_conjunctiva(client, monkeypatch):
