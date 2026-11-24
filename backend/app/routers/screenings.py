@@ -1,3 +1,4 @@
+import gc
 import io
 import os
 import threading
@@ -36,16 +37,32 @@ DISCLAIMER = ("Educational wellness prototype only. A clinical CBC blood test is
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ---------------------------------------------------------------------
-# Model is loaded once at import time.
+# Lazy model loading: the model is loaded on the first request and then
+# kept alive. This avoids consuming RAM during startup (Render free tier
+# has 512 MB; PyTorch alone uses ~300 MB, so every byte counts).
 # ---------------------------------------------------------------------
-unified_model = HerHealthUnifiedModel(conf_thresh=SEG_CONF_THRESH).to(DEVICE)
-_ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True)
-unified_model.load_state_dict(_ckpt["state_dict"], strict=True)
-unified_model.eval().requires_grad_(False)
-MODEL_NAME = _ckpt.get("model_name", "HerHealthUnifiedAnemiaModel")
+_model: HerHealthUnifiedModel | None = None
+_model_name: str = "HerHealthUnifiedAnemiaModel"
+_model_lock = threading.Lock()          # serialises both loading and inference
+# A single forward pass at a time avoids CPU oversubscription / memory spikes.
+_infer_lock = _model_lock               # same lock — load + infer never overlap
 
-# One forward pass at a time: avoids CPU/GPU oversubscription and memory spikes.
-_infer_lock = threading.Lock()
+
+def _get_model() -> tuple[HerHealthUnifiedModel, str]:
+    global _model, _model_name
+    if _model is not None:
+        return _model, _model_name
+    with _model_lock:
+        if _model is not None:          # double-checked locking
+            return _model, _model_name
+        m = HerHealthUnifiedModel(conf_thresh=SEG_CONF_THRESH).to(DEVICE)
+        ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True)
+        m.load_state_dict(ckpt["state_dict"], strict=True)
+        m.eval().requires_grad_(False)
+        _model_name = ckpt.get("model_name", "HerHealthUnifiedAnemiaModel")
+        _model = m
+        gc.collect()
+        return _model, _model_name
 
 
 def _letterbox(img: Image.Image, size: int = INPUT_SIZE, pad: int = 114):
@@ -115,6 +132,7 @@ def analyze_image(file: UploadFile = File(...)):
     x = (torch.from_numpy(np.asarray(boxed, dtype=np.float32) / 255.0)
          .permute(2, 0, 1).unsqueeze(0).to(DEVICE))
 
+    unified_model, MODEL_NAME = _get_model()
     with _infer_lock, torch.inference_mode():
         out = unified_model(x, allow_center_fallback=False)
 

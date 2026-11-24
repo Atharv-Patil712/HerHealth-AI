@@ -10,9 +10,9 @@ into `herhealth_unified.pt`. The web server only imports HerHealthUnifiedModel.
 All module / attribute names are identical to the previous version, so an
 already-built herhealth_unified.pt loads into this class with strict=True.
 """
-import subprocess, sys
-url = "https://download." + "pytorch.org/whl/cpu"
-subprocess.check_call([sys.executable, "-m", "pip", "install", "torch", "--index-url", url])
+# NOTE: torch is installed separately in the build command (render.yaml / requirements).
+# The subprocess pip-install that was here caused ~100 MB of extra pip overhead on
+# every cold start -- removed.
 import importlib.util
 import math
 import os

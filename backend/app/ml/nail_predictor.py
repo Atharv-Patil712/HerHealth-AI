@@ -49,38 +49,54 @@
 #         if os.path.exists(tmp_path):
 #             os.remove(tmp_path)
 
+import gc
 import importlib.util
 import io
+import threading
+
 import joblib
 from huggingface_hub import hf_hub_download
 from PIL import Image
 
 REPO_ID = "JetX-GT/nail-anemia-detector"
 
-# Download inference script and joblib artifacts once at startup
-inference_script_path = hf_hub_download(repo_id=REPO_ID, filename="inference.py")
-model_path = hf_hub_download(repo_id=REPO_ID, filename="mlp_model.joblib")
-scaler_path = hf_hub_download(repo_id=REPO_ID, filename="feature_scaler.joblib")
+# Lazy-loaded globals — initialised on first call to predict_nail_anemia().
+# This keeps them out of RAM during startup so the app doesn't OOM before it
+# even receives a request (Render free tier: 512 MB).
+_nail_lock = threading.Lock()
+_nail_inference = None
+_scaler = None
+_mlp_model = None
 
-# Load extract_features from inference.py
-spec = importlib.util.spec_from_file_location("nail_inference", inference_script_path)
-nail_inference = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(nail_inference)
 
-# Load scikit-learn scaler and MLP model
-scaler = joblib.load(scaler_path)
-mlp_model = joblib.load(model_path)
+def _load_nail_models():
+    global _nail_inference, _scaler, _mlp_model
+    if _nail_inference is not None:
+        return
+    with _nail_lock:
+        if _nail_inference is not None:
+            return
+        inference_script_path = hf_hub_download(repo_id=REPO_ID, filename="inference.py")
+        model_path = hf_hub_download(repo_id=REPO_ID, filename="mlp_model.joblib")
+        scaler_path = hf_hub_download(repo_id=REPO_ID, filename="feature_scaler.joblib")
 
-import gc
-gc.collect()
+        spec = importlib.util.spec_from_file_location("nail_inference", inference_script_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        _nail_inference = mod
+        _scaler = joblib.load(scaler_path)
+        _mlp_model = joblib.load(model_path)
+        gc.collect()
 
 
 def predict_nail_anemia(image_bytes: bytes, high_sensitivity: bool = False) -> dict:
+    _load_nail_models()
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    features = nail_inference.extract_features(img)
-    features_scaled = scaler.transform(features.reshape(1, -1))
+    features = _nail_inference.extract_features(img)
+    features_scaled = _scaler.transform(features.reshape(1, -1))
 
-    prob = float(mlp_model.predict_proba(features_scaled)[0, 1])
+    prob = float(_mlp_model.predict_proba(features_scaled)[0, 1])
     cutoff = 0.255 if high_sensitivity else 0.10
 
     return {
