@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "react-router-dom";
 import { Search, BookOpen, Bookmark, BookmarkCheck, X, ArrowLeft, Clock, ExternalLink, MessageCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 import { VoiceMicButton } from "../components/ui/VoiceMicButton";
@@ -230,6 +231,8 @@ Making the most of a clinical appointment — especially for gynaecological or m
 
 export default function Education() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { articleId } = useParams<{ articleId: string }>();
   const [articles, setArticles] = useState<Article[]>(STATIC_ARTICLES);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -265,6 +268,38 @@ export default function Education() {
       .catch(() => { /* use static fallback */ });
   }, []);
 
+  useEffect(() => {
+    if (!articleId) {
+      setSelectedArticle(null);
+      setLoadingArticle(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingArticle(true);
+    api.get<ArticleDetail>(`/api/education/${articleId}`)
+      .then((data) => {
+        if (active) setSelectedArticle(data);
+      })
+      .catch(() => {
+        const article = STATIC_ARTICLES.find((item) => item.id === articleId);
+        if (active && article) {
+          setSelectedArticle({
+            ...article,
+            content: STATIC_CONTENT[articleId] || `## ${article.title}\n\n${article.excerpt}\n\n*Full article coming soon.*`,
+            references: [],
+          });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingArticle(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [articleId]);
+
   const categories = ["all", ...Array.from(new Set(articles.map((a) => a.category)))];
 
   const filtered = articles.filter((a) => {
@@ -284,28 +319,21 @@ export default function Education() {
     saveBookmarks(next);
   }
 
-  async function openArticle(id: string) {
-    setLoadingArticle(true);
-    try {
-      const data = await api.get<ArticleDetail>(`/api/education/${id}`);
-      setSelectedArticle(data);
-    } catch {
-      // Build from static
-      const art = articles.find((a) => a.id === id);
-      if (art) {
-        setSelectedArticle({
-          ...art,
-          content: STATIC_CONTENT[id] || `## ${art.title}\n\n${art.excerpt}\n\n*Full article coming soon.*`,
-          references: [],
-        });
-      }
-    } finally {
-      setLoadingArticle(false);
-    }
+  function openArticle(id: string) {
+    navigate(`/education/${id}`);
   }
 
   if (selectedArticle) {
-    return <ArticlePage article={selectedArticle} isBookmarked={bookmarks.includes(selectedArticle.id)} onToggleBookmark={() => toggleBookmark(selectedArticle.id)} onBack={() => setSelectedArticle(null)} />;
+    return <ArticlePage article={selectedArticle} isBookmarked={bookmarks.includes(selectedArticle.id)} onToggleBookmark={() => toggleBookmark(selectedArticle.id)} onBack={() => navigate("/education")} />;
+  }
+
+  if (articleId && loadingArticle) {
+    return (
+      <div className="page-container py-12 flex items-center justify-center gap-2 text-sm text-ink/60">
+        <Loader2 size={16} className="animate-spin" />
+        {t("education.loading_article", "Loading article...")}
+      </div>
+    );
   }
 
   return (

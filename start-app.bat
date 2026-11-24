@@ -1,3 +1,3 @@
 @echo off
-start "HerHealth Backend" cmd /k "cd backend && .\.venv\Scripts\activate && uvicorn app.main:app"
-start "HerHealth Frontend" cmd /k "npm run dev"
+start "HerHealth Backend" /D "%~dp0backend" cmd /k ".venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
+start "HerHealth Frontend" /D "%~dp0" cmd /k "npm run dev"

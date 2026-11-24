@@ -24,9 +24,30 @@ interface DashboardData {
     symptoms: string[];
     note: string;
   } | null;
-  screening_history: unknown[];
+  screening_history: ScreeningHistoryItem[];
   featured_education: { id: string; href: string }[];
   next_steps: string[];
+}
+
+interface ScreeningHistoryItem {
+  id: number | string;
+  kind?: string;
+  method?: string;
+  modality?: string;
+  status?: string;
+  risk_tier?: string;
+  anemia_probability?: number;
+  estimated_hemoglobin?: number | null;
+  created_at?: string;
+}
+
+interface AnemiaScreeningRecord {
+  id: number;
+  modality: string;
+  anemia_probability: number;
+  estimated_hemoglobin: number | null;
+  risk_tier: string;
+  created_at: string;
 }
 
 const SHORTCUT_ICONS: Record<string, React.ElementType> = {
@@ -107,24 +128,22 @@ export default function Dashboard() {
 // }
 
   const [data, setData] = useState<DashboardData | null>(null);
-  //const [anemiaHistory, setAnemiaHistory] = useState<AnemiaScreeningRecord[]>([]);
+  const [anemiaHistory, setAnemiaHistory] = useState<AnemiaScreeningRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // useEffect(() => {
-  //   Promise.all([
-  //     api.get<DashboardData>("/api/dashboard"),
-  //     api.get<{ items: AnemiaScreeningRecord[] }>("/api/screenings/history").catch(() => ({ items: [] })),
-  //   ])
-  //     .then(([dashData, historyData]) => {
-  //       setData(dashData);
-  //       setAnemiaHistory(historyData.items || []);
-  //     })
-  useEffect(() => {  
-  api
-      .get<DashboardData>("/api/dashboard")
-      .then((dashData) => {
+  useEffect(() => {
+    Promise.all([
+      api.get<DashboardData>("/api/dashboard"),
+      api
+        .get<{ items?: AnemiaScreeningRecord[] }>("/api/screenings/history")
+        .catch(() => ({ items: [] })),
+    ])
+      .then(([dashData, historyData]) => {
         setData(dashData);
+        setAnemiaHistory(
+          Array.isArray(historyData.items) ? historyData.items : []
+        );
       })
       .catch((err) => {
         setError(
@@ -132,8 +151,7 @@ export default function Dashboard() {
         );
       })
       .finally(() => setLoading(false));
-
-    },[]);
+  }, []);
   
 
   if (loading) {
@@ -174,6 +192,18 @@ export default function Dashboard() {
   }
 
   const welcomeDetail = data.welcome.replace(/^Welcome back[.!]?\s*/i, "").trim();
+  const screeningHistory: ScreeningHistoryItem[] = [
+    ...data.screening_history,
+    ...anemiaHistory.map((item) => ({
+      id: `anemia-${item.id}`,
+      kind: "anemia",
+      modality: item.modality,
+      risk_tier: item.risk_tier,
+      anemia_probability: item.anemia_probability,
+      estimated_hemoglobin: item.estimated_hemoglobin,
+      created_at: item.created_at,
+    })),
+  ];
 
   return (
     <div className="page-container py-8">
@@ -270,29 +300,41 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section className="mt-16 grid gap-12 lg:grid-cols-2" aria-label="Screening and activity">
-        {/* <div>
+      <section className="mt-16" aria-label="Screening history">
           <h2 className="text-section mb-6">Screening history</h2>
-          {data.screening_history.length > 0 ? (
+          {screeningHistory.length > 0 ? (
             <ul className="space-y-4">
-              {data.screening_history.map((item, i) => {
-                const entry = item as {
-                  kind?: string;
-                  created_at?: string;
-                  status?: string;
-                };
+              {screeningHistory.map((entry) => {
+              const method = entry.modality || entry.method;
+              const label = entry.kind || "screening";
+              const status = entry.risk_tier || entry.status || "completed";
                 return (
-                  <li key={i} className="flex items-center justify-between p-4 rounded-lg border border-border bg-white">
+                <li key={entry.id} className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-white">
                   <div>
                     <p className="text-sm font-medium text-ink">
-                      {String(entry.kind || "screening").charAt(0).toUpperCase() + String(entry.kind || "screening").slice(1)}
+                      {label.charAt(0).toUpperCase() + label.slice(1)}
                     </p>
-                    <p className="text-xs text-ink/50">
-                      {new Date(String(entry.created_at)).toLocaleDateString()}
-                    </p>
+                    {method && (
+                      <p className="text-xs text-ink/60 mt-0.5">
+                        {method === "eyelid" ? "Inner eyelid" : method === "nail" ? "Fingernail" : method}
+                      </p>
+                    )}
+                    {entry.anemia_probability !== undefined && (
+                      <p className="text-xs text-ink/60 mt-0.5">
+                        Probability: {(entry.anemia_probability * 100).toFixed(1)}%
+                        {entry.estimated_hemoglobin !== null && entry.estimated_hemoglobin !== undefined
+                          ? ` · Est. Hb: ${entry.estimated_hemoglobin} g/dL`
+                          : ""}
+                      </p>
+                    )}
+                    {entry.created_at && (
+                      <p className="text-xs text-ink/50">
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                   <span className="text-xs font-medium text-deep bg-cream text-deep/90 px-2.5 py-1 rounded">
-                    {String(entry.status).replace(/_/g, " ")}
+                    {status.includes("_") ? status.replace(/_/g, " ") : `${status} Risk`}
                   </span>
                 </li>
               );
@@ -301,45 +343,12 @@ export default function Dashboard() {
           ) : (
             <EmptyState
               title="No screening sessions yet"
-              body="When you complete an anemia screening, it will appear here with its status. Image analysis is not available yet."
-            />
-          )}
-        </div> */}
-
-        {/* <div>
-          <h2 className="text-section mb-6">Screening history</h2>
-          {anemiaHistory.length > 0 ? (
-            <ul className="space-y-4">
-              {anemiaHistory.map((item) => (
-                <li key={item.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-white">
-                  <div>
-                    <p className="text-sm font-medium text-ink capitalize">
-                      {item.modality === "eyelid" ? "Inner Eyelid Screening" : "Fingernail Screening"}
-                    </p>
-                    <p className="text-xs text-ink/60 mt-0.5">
-                      {item.estimated_hemoglobin !== null ? `Est. Hb: ${item.estimated_hemoglobin} g/dL · ` : ""}
-                      Probability: {(item.anemia_probability * 100).toFixed(1)}%
-                    </p>
-                    <p className="text-[11px] text-ink/40 mt-0.5">
-                      {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-deep bg-cream px-2.5 py-1 rounded">
-                    {item.risk_tier} Risk
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              title="No screening sessions yet"
-              body="When you complete an anemia screening, your hemoglobin estimate, probability, and risk tier will appear here."
+              body="When you complete an anemia screening, your result will appear here."
               action={
                 <EmptyStateAction to="/screening/anemia">Start screening</EmptyStateAction>
               }
             />
           )}
-        </div> */}
       </section>
       <section className="mt-16" aria-label="Suggested reading">
         <div className="flex flex-col lg:flex-row lg:items-end lg:gap-6 mb-6">

@@ -84,4 +84,27 @@ describe("Dashboard page", () => {
     expect(screen.getByText("Network error")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
   });
+
+  it("loads saved anemia screening results into screening history", async () => {
+    mockedGet
+      .mockResolvedValueOnce(DASHBOARD_PAYLOAD)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 8,
+            modality: "eyelid",
+            anemia_probability: 0.37,
+            estimated_hemoglobin: 12.1,
+            risk_tier: "Moderate",
+            created_at: "2024-01-03 10:00:00",
+          },
+        ],
+      });
+
+    renderDashboard();
+
+    expect(await screen.findByText("Probability: 37.0% · Est. Hb: 12.1 g/dL"))
+      .toBeInTheDocument();
+    expect(screen.getByText("Moderate Risk")).toBeInTheDocument();
+  });
 });
