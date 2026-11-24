@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     # Relative paths are resolved against the backend "data" directory.
     database_url: str = "sqlite:///herhealth.db"
 
-    cors_origins: List[str] = ["https://herhealth-ai-frontend.onrender.com"]
+    cors_origins: List[str] = [
+        "https://herhealth-ai-frontend.onrender.com",
+        "https://herhealth-ai-w4yw.onrender.com",
+    ]
 
     # Screening image constraints.
     max_upload_size_mb: int = 5

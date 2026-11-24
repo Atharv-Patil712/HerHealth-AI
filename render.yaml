@@ -11,4 +11,4 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: CORS_ORIGINS
-        value: '["https://herhealth-ai-frontend.onrender.com"]'
+        value: '["https://herhealth-ai-frontend.onrender.com","https://herhealth-ai-w4yw.onrender.com"]'

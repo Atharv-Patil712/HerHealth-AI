@@ -4,7 +4,10 @@ import { Upload, X, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-rea
 import { api } from "../lib/api";
 
 const MAX_SIZE_MB = 12;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// Android camera/gallery sometimes reports an empty MIME type for JPEG photos,
+// so we also check the file extension as a fallback.
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const ALLOWED_EXTENSIONS = /\.(jpe?g|png|webp|heic|heif)$/i;
 
 interface UploadState {
   file: File | null;
@@ -61,8 +64,11 @@ export default function AnemiaScreening() {
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP" }) });
+    // Android gallery/camera apps sometimes report an empty MIME type for JPEG;
+    // fall back to checking the file extension before rejecting the file.
+    const typeOk = ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.test(file.name);
+    if (!typeOk) {
+      setter({ file: null, preview: null, error: t("forms.upload.type_limit", { types: "JPEG, PNG, WebP, HEIC" }) });
       return;
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
@@ -277,6 +283,7 @@ export default function AnemiaScreening() {
             guidance={t("screening.guidance_eyelid")}
             state={eyelid}
             inputRef={eyelidRef}
+            capture="environment"
             onChange={(e) => {
               setApiError(null);
               handleFile(e, setEyelid);
@@ -291,6 +298,7 @@ export default function AnemiaScreening() {
             guidance={t("screening.guidance_nail")}
             state={nail}
             inputRef={nailRef}
+            capture="environment"
             onChange={(e) => {
               setApiError(null);
               handleFile(e, setNail);
@@ -324,6 +332,7 @@ function UploadZone({
   inputRef,
   onChange,
   onRemove,
+  capture,
 }: {
   label: string;
   guidance: string;
@@ -331,6 +340,8 @@ function UploadZone({
   inputRef: React.RefObject<HTMLInputElement>;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: () => void;
+  /** Pass "environment" to open the rear camera by default on mobile */
+  capture?: "environment" | "user";
 }) {
   const { t } = useTranslation();
 
@@ -367,10 +378,13 @@ function UploadZone({
         <p className="text-xs text-red-600 mt-2">{state.error}</p>
       )}
 
+      {/* accept includes image/* so Android camera roll is not filtered out;
+          the HEIC extensions are added for iOS Safari which uses extension matching. */}
       <input
         ref={inputRef}
         type="file"
-        accept={ALLOWED_TYPES.join(",")}
+        accept="image/*,.heic,.heif"
+        capture={capture}
         onChange={onChange}
         className="hidden"
       />
