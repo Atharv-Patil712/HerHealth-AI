@@ -278,13 +278,42 @@ export default function Dashboard() {
 
         <div>
           <h2 className="text-section mb-6">Recent activity</h2>
-          <EmptyState
-            title="Nothing recent yet"
-            body="Your cycle entries, screening sessions, and questionnaire summaries will appear here."
-            action={
-              <EmptyStateAction to="/cycle-tracking">Log a period</EmptyStateAction>
-            }
-          />
+          {data.recent_activity.length > 0 ? (
+            <ul className="space-y-4">
+              {data.recent_activity.map((item, i) => {
+                const activity = item as {
+                  title?: string;
+                  detail?: string;
+                  created_at?: string;
+                };
+                return (
+                  <li key={i} className="flex items-center justify-between p-4 rounded-lg border border-border bg-white">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{activity.title || "Activity"}</p>
+                      {activity.created_at && (
+                        <p className="text-xs text-ink/50">
+                          {new Date(activity.created_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    {activity.detail && (
+                      <span className="text-xs font-medium text-deep bg-cream px-2.5 py-1 rounded">
+                        {activity.detail}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title="Nothing recent yet"
+              body="Your cycle entries, screening sessions, and questionnaire summaries will appear here."
+              action={
+                <EmptyStateAction to="/cycle-tracking">Log a period</EmptyStateAction>
+              }
+            />
+          )}
         </div>
       </section>
       <section className="mt-16" aria-label="Suggested reading">

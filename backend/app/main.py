@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import cycle, dashboard, education, health, questionnaires, screenings
+from app.routers import chat, cycle, dashboard, education, health, questionnaires, screenings
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ api.include_router(education.router, prefix="/api")
 api.include_router(cycle.router, prefix="/api")
 api.include_router(screenings.router)
 api.include_router(questionnaires.router, prefix="/api")
+api.include_router(chat.router)
 
 
 @api.get("/api/root", include_in_schema=False)

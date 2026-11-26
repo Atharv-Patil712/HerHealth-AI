@@ -7,7 +7,7 @@ import Education from "./pages/Education";
 import Journal from "./pages/Journal";
 import AnemiaScreening from "./pages/AnemiaScreening";
 import ImageTesting from "./pages/ImageTesting";
-import { ComingSoon } from "./components/layout/ComingSoon";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -23,7 +23,7 @@ export default function App() {
           <Route path="journal" element={<Journal />} />
           <Route path="screening/anemia" element={<AnemiaScreening />} />
           <Route path="image-testing" element={<ImageTesting />} />
-          <Route path="reports" element={<ComingSoon feature="Reports & history" />} />
+          <Route path="reports" element={<Reports />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

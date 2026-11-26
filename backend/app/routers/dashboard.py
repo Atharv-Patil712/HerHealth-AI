@@ -23,14 +23,18 @@ def _parse_json_list(value) -> list:
     return parsed if isinstance(parsed, list) else []
 
 
-def _screening_summary(row) -> dict:
-    """Map a screening_events row onto the shape the dashboard UI expects."""
+def _anemia_screening_summary(row) -> dict:
+    """Map an anemia_screenings row onto the shape the dashboard UI expects."""
     data = row_to_dict(row)
+    modality = data.get("modality") or "eyelid"
+    risk_tier = data.get("risk_tier") or "Unspecified"
     return {
         "id": data.get("id"),
-        "kind": data.get("kind") or "anemia",
-        "method": data.get("method") or "",
-        "status": data.get("status") or "",
+        "kind": f"anemia ({modality})",
+        "method": modality,
+        "status": f"{risk_tier} Risk",
+        "anemia_probability": data.get("anemia_probability"),
+        "estimated_hemoglobin": data.get("estimated_hemoglobin"),
         "created_at": data.get("created_at") or "",
     }
 
@@ -58,7 +62,7 @@ SHORTCUTS = [
         "label": "Anemia screening",
         "description": "Image-assisted screening for inner lower-eyelid and fingernail photos.",
         "href": "/screening/anemia",
-        "coming_soon": True,
+        "coming_soon": False,
     },
     {
         "key": "health-education",
@@ -72,7 +76,7 @@ SHORTCUTS = [
         "label": "Reports & history",
         "description": "Your saved records and printable summaries.",
         "href": "/reports",
-        "coming_soon": True,
+        "coming_soon": False,
     },
 ]
 
@@ -94,16 +98,41 @@ def get_dashboard():
             "note": "Cycle length estimates require at least two recorded periods.",
         }
 
-    screenings = query(
-        "SELECT * FROM screening_events ORDER BY created_at DESC LIMIT 5"
+    anemia_rows = query(
+        """
+        SELECT id, modality, anemia_probability, estimated_hemoglobin, risk_tier, created_at
+        FROM anemia_screenings
+        ORDER BY created_at DESC, id DESC
+        LIMIT 5
+        """
     )
+    screening_history = [_anemia_screening_summary(r) for r in anemia_rows]
+
+    recent_activity = [
+        {
+            "type": "screening",
+            "title": f"Anemia screening ({s['method']})",
+            "detail": s["status"],
+            "created_at": s["created_at"],
+        }
+        for s in screening_history[:3]
+    ]
+    if cycle_overview:
+        recent_activity.append(
+            {
+                "type": "cycle",
+                "title": "Cycle entry logged",
+                "detail": f"{cycle_overview['last_flow']} flow",
+                "created_at": cycle_overview["last_period_start"],
+            }
+        )
 
     return DashboardResponse(
         welcome=WELCOME,
         shortcuts=SHORTCUTS,
-        recent_activity=[],
+        recent_activity=recent_activity,
         cycle_overview=cycle_overview,
-        screening_history=[_screening_summary(r) for r in screenings],
+        screening_history=screening_history,
         featured_education=[
             {"id": aid, "href": f"/education/{aid}"} for aid in _FEATURED_ARTICLE_IDS
         ],

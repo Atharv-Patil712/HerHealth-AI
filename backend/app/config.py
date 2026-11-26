@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 5
     allowed_image_mime_types: List[str] = ["image/jpeg", "image/png", "image/webp"]
 
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-6"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

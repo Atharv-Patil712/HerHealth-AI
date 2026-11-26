@@ -9,9 +9,9 @@ interface ScreeningRecord {
   modality: string;
   model_name: string;
   anemia_probability: number;
-  estimated_hemoglobin: number;
+  estimated_hemoglobin: number | null;
   risk_tier: string;
-  roi_confidence: number;
+  roi_confidence: number | null;
   created_at?: string;
 }
 
@@ -75,11 +75,14 @@ export default function Reports() {
                     <span className="text-xs text-gray-400">• {item.created_at}</span>
                   )}
                 </div>
-                <p className="font-medium text-gray-900">
-                  Est. Hemoglobin: <span className="font-semibold">{item.estimated_hemoglobin} g/dL</span>
-                </p>
+                {item.estimated_hemoglobin !== null && (
+                  <p className="font-medium text-gray-900">
+                    Est. Hemoglobin: <span className="font-semibold">{item.estimated_hemoglobin} g/dL</span>
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
-                  Probability: {(item.anemia_probability * 100).toFixed(1)}% • Confidence: {(item.roi_confidence * 100).toFixed(0)}%
+                  Probability: {(item.anemia_probability * 100).toFixed(1)}%
+                  {item.roi_confidence !== null && ` • Confidence: ${(item.roi_confidence * 100).toFixed(0)}%`}
                 </p>
               </div>
 

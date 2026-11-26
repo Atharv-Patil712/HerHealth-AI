@@ -216,3 +216,33 @@ def test_screenings_history(client):
     response = client.get("/api/screenings/history")
     assert response.status_code == 200
     assert isinstance(response.json()["items"], list)
+
+
+def test_analyze_missing_model_raises_error(client, monkeypatch):
+    """Simulate missing model file to verify clear error message.
+    
+    By setting unified_model = None, _get_model() will attempt to load
+    the model from the file system. Since herhealth_unified.pt does not
+    exist, torch.load raises FileNotFoundError, which is caught and
+    converted to an HTTP 500 response with a clear message.
+    """
+    # Use the same test image pattern as other tests (green bg, red rect)
+    def create_test_image():
+        img = Image.new("RGB", (640, 640), (20, 120, 40))
+        ImageDraw.Draw(img).rectangle((0, 0, 319, 639), fill=(180, 90, 30))
+        return img
+
+    image = io.BytesIO()
+    create_test_image().save(image, format="JPEG")
+    image.seek(0)
+    
+    monkeypatch.setattr(screenings, "unified_model", None)
+    
+    response = client.post(
+        "/api/screenings/analyze",
+        files={"file": ("eyelid.jpg", image, "image/jpeg")},
+    )
+    
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert "Model not found" in detail or "not found" in detail.lower()

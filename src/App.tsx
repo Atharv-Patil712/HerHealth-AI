@@ -10,6 +10,7 @@ import ImageTesting from "./pages/ImageTesting";
 //import { ComingSoon } from "./components/layout/ComingSoon";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
+import Chatbot from "./pages/Chatbot";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="screening/anemia" element={<AnemiaScreening />} />
           <Route path="image-testing" element={<ImageTesting />} />
           <Route path="/reports" element = {<Reports />} />
+          <Route path="chatbot" element={<Chatbot />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

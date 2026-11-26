@@ -4,7 +4,7 @@ services:
     plan: free
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && python build_health_kb.py
+    buildCommand: pip install -r requirements.txt && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && python build_unified_model.py && python build_health_kb.py
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:

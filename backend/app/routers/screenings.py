@@ -89,9 +89,22 @@ def _get_model() -> tuple[HerHealthUnifiedModel, str]:
         if unified_model is not None:
             return unified_model, MODEL_NAME
         _dbg("torch model load start")
-        m = HerHealthUnifiedModel(conf_thresh=SEG_CONF_THRESH).to(DEVICE)
-        ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True)
-        m.load_state_dict(ckpt["state_dict"], strict=True)
+        try:
+            m = HerHealthUnifiedModel(conf_thresh=SEG_CONF_THRESH).to(DEVICE)
+            ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True)
+            m.load_state_dict(ckpt["state_dict"], strict=True)
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Anemia screening model not found at {MODEL_PATH}. "
+                       "Please ensure the model file is built/deployed. "
+                       "Run: python build_unified_model.py (requires eye_seg_model.pt and model.pt)",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to load anemia screening model: {str(e)}",
+            )
         m.eval().requires_grad_(False)
         MODEL_NAME = ckpt.get("model_name", "HerHealthUnifiedAnemiaModel")
         unified_model = m
